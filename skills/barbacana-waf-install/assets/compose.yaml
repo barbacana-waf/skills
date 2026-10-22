@@ -1,0 +1,20 @@
+# Replace the image tag with the latest release (gh release list -R barbacana-waf/barbacana).
+services:
+  barbacana:
+    image: ghcr.io/barbacana-waf/barbacana:vX.Y.Z
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./waf.yaml:/etc/barbacana/waf.yaml:ro
+      - barbacana-data:/data/barbacana
+    depends_on:
+      - app
+    restart: unless-stopped
+  app:
+    image: your-app-image:tag   # replace
+    expose:
+      - "8000"
+    restart: unless-stopped
+volumes:
+  barbacana-data:

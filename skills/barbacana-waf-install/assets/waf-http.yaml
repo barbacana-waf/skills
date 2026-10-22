@@ -1,0 +1,7 @@
+version: v1alpha1
+# Mode 3: plain HTTP behind a TLS-terminating load balancer or ingress.
+port: 8080
+metrics_port: 9090   # internal network only
+health_port: 8081    # /healthz and /readyz
+routes:
+  - upstream: http://app:8000

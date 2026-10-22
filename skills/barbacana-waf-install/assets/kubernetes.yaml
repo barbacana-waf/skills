@@ -1,0 +1,54 @@
+# Mode 3 (plain HTTP behind an ingress / load balancer). Replace vX.Y.Z and the upstream.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: barbacana-config
+data:
+  waf.yaml: |
+    version: v1alpha1
+    port: 8080
+    metrics_port: 9090
+    health_port: 8081
+    routes:
+      - upstream: http://app.default.svc.cluster.local:8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: barbacana
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: barbacana}
+  template:
+    metadata:
+      labels: {app: barbacana}
+    spec:
+      containers:
+        - name: barbacana
+          image: ghcr.io/barbacana-waf/barbacana:vX.Y.Z
+          ports:
+            - {name: http, containerPort: 8080}
+            - {name: metrics, containerPort: 9090}
+            - {name: health, containerPort: 8081}
+          livenessProbe:
+            httpGet: {path: /healthz, port: health}
+          readinessProbe:
+            httpGet: {path: /readyz, port: health}
+          volumeMounts:
+            - {name: config, mountPath: /etc/barbacana, readOnly: true}
+            - {name: data, mountPath: /data/barbacana}
+      volumes:
+        - name: config
+          configMap: {name: barbacana-config}
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: barbacana
+spec:
+  selector: {app: barbacana}
+  ports:
+    - {name: http, port: 80, targetPort: http}

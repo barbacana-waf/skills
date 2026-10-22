@@ -1,0 +1,425 @@
+{
+  "skill_name": "barbacana-waf-install",
+  "evals": [
+    {
+      "id": 1,
+      "name": "flask-compose-behind-lb",
+      "prompt": "I have a Flask API in this directory, running in docker compose as service 'api' on port 5000. Put a WAF in front of it. We have a load balancer that does TLS.",
+      "expected_output": "Mode 3 config with upstream http://api:5000, pinned image tag, validate step, smoke test; the api service stops publishing 5000 to the host; no disable entries.",
+      "files": [
+        "files/1"
+      ],
+      "assertions": [
+        {
+          "text": "Writes a Barbacana config",
+          "check": {
+            "type": "file_exists",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Config passes barbacana --validate",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Upstream is the compose service name and port",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://api:5000"
+          }
+        },
+        {
+          "text": "Plain HTTP mode: no top-level host",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^host:"
+          }
+        },
+        {
+          "text": "Install adds no disable entries",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Barbacana image is pinned, not :latest",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana-waf/barbacana:v(\\d+\\.\\d+\\.\\d+|X\\.Y\\.Z)"
+          }
+        },
+        {
+          "text": "No file uses the :latest tag",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana:latest"
+          }
+        },
+        {
+          "text": "App no longer published on the host",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/docker-compose.y*ml",
+            "regex": "5000:5000"
+          }
+        },
+        {
+          "text": "Final answer mentions the validate step",
+          "check": {
+            "type": "output_contains",
+            "regex": "--validate"
+          }
+        },
+        {
+          "text": "Final answer includes the smoke test (blocked probe)",
+          "check": {
+            "type": "output_contains",
+            "regex": "403|(?i:blocked)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "vps-auto-tls",
+      "prompt": "deploy barbacana on my VPS so https://shop.mydomain.io is protected, backend is on localhost:3000",
+      "expected_output": "Mode 1 (host: shop.mydomain.io), no port, persistent data dir, ports 80/443 and DNS checks, localhost caveat if Barbacana runs in a container.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Config passes barbacana --validate",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Auto-TLS host set",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^host:\\s*\\[?\\s*shop\\.mydomain\\.io"
+          }
+        },
+        {
+          "text": "No top-level port (mutually exclusive with host)",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^port:"
+          }
+        },
+        {
+          "text": "Mentions DNS",
+          "check": {
+            "type": "output_contains",
+            "regex": "DNS"
+          }
+        },
+        {
+          "text": "Mentions ports 80 and 443",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?s)(?=.*\\b80\\b)(?=.*\\b443\\b)"
+          }
+        },
+        {
+          "text": "Mentions persisting certificates / data_dir",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)persist|volume|data_dir"
+          }
+        },
+        {
+          "text": "No :latest image",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana:latest"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "k8s-orders-prometheus",
+      "prompt": "Set up barbacana on our k8s cluster in front of the 'orders' service (see orders.yaml), and make sure prometheus can scrape it",
+      "expected_output": "ConfigMap+Deployment+Service, upstream is the orders service, probes on the health port, metrics port NOT exposed via the Service, no Helm promised.",
+      "files": [
+        "files/3"
+      ],
+      "assertions": [
+        {
+          "text": "Embedded config upstream points at the orders service",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "upstream:\\s*http://orders(\\.shop(\\.svc(\\.cluster\\.local)?)?)?:8080"
+          }
+        },
+        {
+          "text": "Readiness probe uses /readyz",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "/readyz"
+          }
+        },
+        {
+          "text": "Liveness probe uses /healthz",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "/healthz"
+          }
+        },
+        {
+          "text": "Metrics port enabled in config",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "metrics_port:\\s*[1-9]"
+          }
+        },
+        {
+          "text": "Pinned image",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana-waf/barbacana:v(\\d+\\.\\d+\\.\\d+|X\\.Y\\.Z)"
+          }
+        },
+        {
+          "text": "Metrics port not published by a Service",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "(?s)kind:\\s*Service\\b(?:(?!\\n---).)*?(9090|metrics)"
+          }
+        },
+        {
+          "text": "Does not promise Helm",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "(?i)helm (install|upgrade)"
+          }
+        },
+        {
+          "text": "Explains how Prometheus scrapes",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)scrape|ServiceMonitor|PodMonitor"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "latest-and-disable-sqli",
+      "prompt": "Install barbacana, use latest, and disable the sql injection checks so my tests pass",
+      "expected_output": "Pins a version instead of :latest and explains why; does not disable anything at install; points to tuning the specific blocked request.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "No file uses :latest",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana:latest"
+          }
+        },
+        {
+          "text": "No disable entries written",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Explains pinning",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)\\bpin"
+          }
+        },
+        {
+          "text": "Pushes back on disabling and suggests finding the blocked request",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)false positive|narrow|specific|tune|which request"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "backend-on-host-from-container",
+      "prompt": "Run barbacana with docker compose on my Mac. My app is NOT in docker, it runs directly on my machine on port 3000. Protect it, plain http on 8080 is fine.",
+      "expected_output": "Upstream must not be localhost/127.0.0.1 (that is the container itself). Uses host.docker.internal (with extra_hosts host-gateway on Linux) or equivalent, explained.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Upstream is not loopback",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://(localhost|127\\.0\\.0\\.1)"
+          }
+        },
+        {
+          "text": "Upstream reaches the host",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://(host\\.docker\\.internal|host\\.containers\\.internal|172\\.\\d+\\.\\d+\\.\\d+|192\\.168\\.\\d+\\.\\d+|\\$\\{)"
+          }
+        },
+        {
+          "text": "Config validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Explains why localhost does not work",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)localhost.*(container|itself)|container.*localhost|loopback"
+          }
+        },
+        {
+          "text": "Pinned image",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana-waf/barbacana:v(\\d+\\.\\d+\\.\\d+|X\\.Y\\.Z)"
+          }
+        },
+        {
+          "text": "No :latest",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana:latest"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "verify-image-signature",
+      "prompt": "Before I deploy it, show me exactly how to verify the signature of the ghcr.io/barbacana-waf/barbacana:v0.9.7 image with cosign.",
+      "expected_output": "Gives the working cosign verify command: exact --certificate-identity for release.yml on refs/heads/master and the GitHub Actions OIDC issuer.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Uses the real release workflow identity",
+          "check": {
+            "type": "output_contains",
+            "regex": "release\\.yml@refs/heads/master"
+          }
+        },
+        {
+          "text": "Uses the GitHub Actions OIDC issuer",
+          "check": {
+            "type": "output_contains",
+            "regex": "https://token\\.actions\\.githubusercontent\\.com"
+          }
+        },
+        {
+          "text": "Does not use a tag-based or ci.yml identity",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "ci\\.yml|@refs/tags"
+          }
+        },
+        {
+          "text": "Uses cosign verify",
+          "check": {
+            "type": "output_contains",
+            "regex": "cosign verify"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "arm64-binary-systemd",
+      "prompt": "I want to run barbacana as a plain binary under systemd on a Raspberry Pi 5 (64-bit OS) in front of my app on localhost:8000, behind nginx that does TLS. Verify the download too.",
+      "expected_output": "linux_arm64 archive, checksums.txt and bundle verification, config on a plain port with upstream localhost:8000, systemd unit with validate-before-start, data_dir that matches StateDirectory.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Config validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Plain port mode (no host)",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^host:"
+          }
+        },
+        {
+          "text": "Upstream is the local app",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://(localhost|127\\.0\\.0\\.1):8000"
+          }
+        },
+        {
+          "text": "arm64 Linux archive",
+          "check": {
+            "type": "output_contains",
+            "regex": "linux_arm64|linux.*arm64"
+          }
+        },
+        {
+          "text": "Verifies the checksums signature with the real identity",
+          "check": {
+            "type": "output_contains",
+            "regex": "release\\.yml@refs/heads/master"
+          }
+        },
+        {
+          "text": "Checks the archive checksum",
+          "check": {
+            "type": "output_contains",
+            "regex": "sha256sum|shasum"
+          }
+        },
+        {
+          "text": "Systemd unit written",
+          "check": {
+            "type": "file_exists",
+            "glob": "**/*.service"
+          }
+        },
+        {
+          "text": "Unit validates before start",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.service",
+            "regex": "ExecStartPre=.*--validate"
+          }
+        }
+      ]
+    }
+  ]
+}

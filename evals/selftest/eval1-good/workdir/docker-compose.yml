@@ -1,0 +1,8 @@
+services:
+  barbacana:
+    image: ghcr.io/barbacana-waf/barbacana:v0.9.7
+    ports: ["8080:8080"]
+    volumes: ["./waf.yaml:/etc/barbacana/waf.yaml:ro"]
+  api:
+    build: .
+    expose: ["5000"]

@@ -1,0 +1,6 @@
+version: v1alpha1
+port: 8080
+health_port: 8081
+data_dir: /tmp/barbacana-selftest
+routes:
+  - upstream: http://api:5000

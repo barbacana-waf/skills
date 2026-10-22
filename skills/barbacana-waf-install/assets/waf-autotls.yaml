@@ -1,0 +1,9 @@
+version: v1alpha1
+# Mode 1: Barbacana terminates TLS itself and gets a Let's Encrypt
+# certificate. Needs ports 80 and 443 reachable from the internet and
+# DNS for the host pointing at this machine.
+host: api.example.com
+data_dir: /data/barbacana   # persist this: certificates + ACME state
+health_port: 8081
+routes:
+  - upstream: http://app:8000

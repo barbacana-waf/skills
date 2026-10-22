@@ -1,0 +1,12 @@
+name: validate
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/lint-skills.sh
+  # TODO: validate-configs job. Pull the latest released image and run
+  # `barbacana --config <file> --validate` on every skills/*/assets/*.yaml.

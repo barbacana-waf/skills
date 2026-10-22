@@ -1,0 +1,22 @@
+[Unit]
+Description=Barbacana WAF
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=barbacana
+Group=barbacana
+ExecStartPre=/usr/local/bin/barbacana --config /etc/barbacana/waf.yaml --validate
+ExecStart=/usr/local/bin/barbacana --config /etc/barbacana/waf.yaml
+Restart=on-failure
+StateDirectory=barbacana
+# Set data_dir: /var/lib/barbacana in waf.yaml (this is StateDirectory).
+# Binding :80/:443 as non-root:
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
