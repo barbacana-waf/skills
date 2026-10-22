@@ -1,0 +1,16 @@
+version: v1alpha1
+port: 8080
+health_port: 8081
+routes:
+  # Narrow route for one endpoint with a documented exception.
+  - id: search
+    match:
+      paths: ["/search*"]
+    upstream: http://shop:8000
+    # Why: search box legitimately contains SQL words.
+    # Gives up: what the protection below detects (see: barbacana --catalog-leaf <id>).
+    disable:
+      - sql-injection-mssql-specific
+  # Everything else keeps every protection.
+  - id: shop
+    upstream: http://shop:8000

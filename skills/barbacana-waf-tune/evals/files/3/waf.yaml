@@ -1,0 +1,6 @@
+version: v1alpha1
+port: 8080
+health_port: 8081
+routes:
+  - id: shop
+    upstream: http://shop:8000

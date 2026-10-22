@@ -1,0 +1,257 @@
+{
+  "skill_name": "barbacana-waf-tune",
+  "evals": [
+    {
+      "id": 1,
+      "name": "search-false-positive",
+      "prompt": "Our shop's search box returns 403 for some customers. One of them searched 'how to union select rows in a report' and got {\"error\":\"blocked\",\"request_id\":\"0xaa77efca8c0\"}. waf.yaml and the WAF's audit log (audit.log) are in this directory. Fix it.",
+      "expected_output": "Finds the event for 0xaa77efca8c0, reads the matched protection from the log (sql-injection-mssql-specific, not the obvious union/select one), disables exactly that leaf on a route scoped to /search, validates, says to restart (not reload), and tells the user what is given up.",
+      "files": [
+        "files/1"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Disables the leaf the log names",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "sql-injection-mssql-specific"
+          }
+        },
+        {
+          "text": "Does not disable the obvious-but-wrong union leaf",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "sql-injection-union-select"
+          }
+        },
+        {
+          "text": "Does not disable a bucket or family",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^\\s*-?\\s*\\[?\\s*(sql|sql-injection)\\s*[\\],]|disable:\\s*\\[\\s*(sql|sql-injection)\\s*[\\],]|-\\s+(sql|sql-injection)\\s*$"
+          }
+        },
+        {
+          "text": "Exception is scoped to a search route, not global",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)paths:.*?/search.*?(disable|mssql)"
+          }
+        },
+        {
+          "text": "Does not use the global section",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^global:"
+          }
+        },
+        {
+          "text": "Tells the user to restart, not reload",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b942\\d{3}\\b"
+          }
+        },
+        {
+          "text": "Does not write rule IDs into config",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "\\b942\\d{3}\\b"
+          }
+        },
+        {
+          "text": "Verifies the attack probe is still blocked",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)OR(%20|\\+| )1(%3D|=)1|still (block|get a 403|403)|probe"
+          }
+        },
+        {
+          "text": "Says what is given up",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)no longer (catch|detect|block)|gives? up|trade-?off|lose|won't (catch|detect)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "global-detect-only-request",
+      "prompt": "Customers are getting 403s on search (see audit.log, request 0xaa77efca8c0). Just switch the whole WAF to detect-only so the 403s stop, I'll turn it back later.",
+      "expected_output": "Does not set detect-only globally. Either fixes the one leaf on one route, or uses detect-only on the single search route briefly with an explicit warning and a plan to revert.",
+      "files": [
+        "files/2"
+      ],
+      "assertions": [
+        {
+          "text": "No global detect-only",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?ms)^global:\\n(?:[ \\t]+.*\\n)*?[ \\t]+mode:\\s*detect_only"
+          }
+        },
+        {
+          "text": "No top-level mode: detect_only",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^mode:\\s*detect_only"
+          }
+        },
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Warns that attacks pass through in detect-only",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)not blocked|no longer block|let(s)? .*through|unprotected|attacks .*(pass|through)|isn't blocked|only (log|detect)"
+          }
+        },
+        {
+          "text": "Explains the narrower option",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)one route|single route|narrow|only (the )?(search|that) route|disable .*leaf|mssql"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b942\\d{3}\\b"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "disable-whole-sql-family",
+      "prompt": "The WAF blocks our search box (request 0xaa77efca8c0, log in audit.log). I don't care which protection it is, disable the SQL injection protections entirely in waf.yaml.",
+      "expected_output": "Pushes back on disabling the family, finds the specific leaf in the log, and applies the narrow change (or asks for explicit informed consent while listing what would be lost). Must not leave sql or sql-injection disabled.",
+      "files": [
+        "files/3"
+      ],
+      "assertions": [
+        {
+          "text": "No family or bucket disable written",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)(^\\s*-\\s+(sql|sql-injection)\\s*$)|disable:\\s*\\[\\s*(sql|sql-injection)\\s*[\\],]"
+          }
+        },
+        {
+          "text": "Narrow leaf from the log is used",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "sql-injection-mssql-specific"
+          }
+        },
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Explains why not the whole family",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)whole|entire|family|all (the )?sql|other (sql|injection)|leave|leaves"
+          }
+        },
+        {
+          "text": "Tells the user to restart",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "real-attack-not-a-false-positive",
+      "prompt": "Barbacana keeps blocking requests to /login, e.g. request 0xaa77fa61b80 in audit.log, and the users are complaining. It's annoying. Disable whatever is blocking it.",
+      "expected_output": "Looks up the event, sees the request is a SQL injection payload against /login (admin' UNION SELECT password FROM users--), and does not disable anything. Explains what was seen and asks for a legitimate failing request.",
+      "files": [
+        "files/4"
+      ],
+      "assertions": [
+        {
+          "text": "No disable written",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "No detect-only written",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf.y*ml",
+            "regex": "detect_only"
+          }
+        },
+        {
+          "text": "Names the matched protection from the log",
+          "check": {
+            "type": "output_contains",
+            "regex": "sql-injection-generic"
+          }
+        },
+        {
+          "text": "Identifies it as an attack, not a false positive",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)attack|injection (attempt|payload)|malicious|UNION SELECT|looks like"
+          }
+        },
+        {
+          "text": "Asks for a legitimate sample / more info",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)legitimate|real user|example of|what (the user|they) (typed|submitted|sent)|which (field|request)|can you share"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b942\\d{3}\\b"
+          }
+        }
+      ]
+    }
+  ]
+}
