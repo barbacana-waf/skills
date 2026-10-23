@@ -1,0 +1,18 @@
+version: v1alpha1
+# Plain HTTP behind a load balancer or ingress. Keep health and metrics on an
+# internal network only.
+port: 8080
+health_port: 8081            # /healthz and /readyz (always 200 while the process is up)
+metrics_port: 9090           # /metrics
+audit_log:
+  format: ocsf               # or ecs; read at startup only
+tracing:
+  enabled: true
+  protocol: grpc
+  endpoint: otel-collector:4317
+  insecure: true             # set false and use a TLS collector outside a trusted network
+  service:
+    name: barbacana
+routes:
+  - id: app
+    upstream: http://app:8000

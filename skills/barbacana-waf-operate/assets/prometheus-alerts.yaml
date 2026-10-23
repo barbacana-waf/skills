@@ -1,0 +1,79 @@
+# Prometheus alerting rules for Barbacana v0.9.x. Replace job="barbacana" with your
+# scrape job (barbacana-k8s for the Kubernetes job) and review the thresholds.
+groups:
+  - name: barbacana
+    rules:
+      - alert: BarbacanaDown
+        expr: up{job="barbacana"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Barbacana metrics target {{ $labels.instance }} is down"
+          description: "Either the process is gone or the metrics port is unreachable. Check the container logs."
+
+      - alert: BarbacanaUpstreamErrors
+        expr: |
+          sum by (route) (rate(waf_upstream_errors_total[5m]))
+            / sum by (route) (rate(waf_requests_total[5m])) > 0.05
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Route {{ $labels.route }}: over 5% of requests fail at the upstream"
+          description: "The app behind Barbacana is refusing, timing out or returning 5xx. See waf_upstream_errors_total by kind. The health probes stay green in this case."
+
+      - alert: BarbacanaBlockRatioHigh
+        expr: |
+          (
+            sum by (route) (rate(waf_requests_total{action="blocked"}[10m]))
+              / sum by (route) (rate(waf_requests_total[10m])) > 0.3
+          ) and sum by (route) (rate(waf_requests_total[10m])) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Route {{ $labels.route }}: over 30% of requests are blocked"
+          description: "An attack, or a new false positive after a deploy. Read the audit log for the top protections."
+
+      - alert: BarbacanaRouteDetectOnly
+        expr: waf_mode_info{mode="detect_only"} == 1
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "Route {{ $labels.route }} has been in detect_only for over an hour"
+          description: "Attacks on this route are logged but not blocked. Confirm it is intentional and temporary. After a SIGHUP this metric can disagree with the running routes; restart to be sure."
+
+      - alert: BarbacanaEvaluationTimeouts
+        expr: sum by (route) (increase(waf_evaluation_timeout_total[10m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Route {{ $labels.route }}: rule evaluation timed out"
+
+      - alert: BarbacanaInFlightHigh
+        expr: max by (instance) (waf_requests_in_flight) > 500
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.instance }} has over 500 requests in flight"
+          description: "Capacity or a stuck upstream. Compare with the request rate."
+
+      - alert: BarbacanaOverheadHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, route) (rate(waf_request_duration_overhead_seconds_bucket[5m]))) > 0.1
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Route {{ $labels.route }}: WAF overhead p95 above 100ms"
+
+      - alert: BarbacanaReloadRejected
+        expr: caddy_config_last_reload_successful{job="barbacana"} == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.instance }} rejected a config reload"
+          description: "A SIGHUP config failed to load and the old routes are still running. Fix the config and restart."
+
+      - alert: BarbacanaRestarted
+        expr: changes(process_start_time_seconds{job="barbacana"}[15m]) > 0
+        labels: {severity: info}
+        annotations:
+          summary: "{{ $labels.instance }} restarted"

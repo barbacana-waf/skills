@@ -1,0 +1,11 @@
+# scraped from :9090/metrics a minute ago
+waf_build_info{commit="abc1234",crs_version="4.x",go_version="go1.25",version="v0.9.7"} 1
+waf_mode_info{mode="blocking",route="shop"} 1
+waf_requests_total{action="allowed",route="shop"} 18423
+waf_requests_total{action="blocked",route="shop"} 12
+waf_requests_blocked_total{protection="sql-injection-generic",route="shop"} 12
+waf_upstream_errors_total{kind="connection_refused",route="shop"} 9317
+waf_upstream_errors_total{kind="timeout",route="shop"} 4
+waf_requests_in_flight 3
+waf_config_reload_total{result="success"} 0
+caddy_reverse_proxy_upstreams_healthy{upstream="app:3000"} 1

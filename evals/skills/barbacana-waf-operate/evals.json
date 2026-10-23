@@ -1,1 +1,376 @@
-{"skill_name": "barbacana-waf-operate", "evals": []}
+{
+  "skill_name": "barbacana-waf-operate",
+  "evals": [
+    {
+      "id": 1,
+      "name": "prometheus-alerts",
+      "prompt": "We run Barbacana in production and have Prometheus and Alertmanager but no monitoring on the WAF yet. waf.yaml is in this directory. Set it up so we get paged if the app behind Barbacana goes down, and warned if a lot of traffic suddenly gets blocked. Write the config and rule files here.",
+      "expected_output": "Enables metrics_port (and health_port) in waf.yaml, validates, writes a scrape job and alert rules built on waf_upstream_errors_total and the blocked/total ratio, notes that healthz/readyz do not detect upstream failures, and says a restart is needed.",
+      "files": [
+        "files/1"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Metrics port enabled",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^metrics_port:\\s*[1-9]"
+          }
+        },
+        {
+          "text": "Alert rules exist and use the upstream error counter",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "waf_upstream_errors_total"
+          }
+        },
+        {
+          "text": "Block alert uses blocked requests",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "waf_requests_(blocked_)?total\\{?[^\\n]*blocked|waf_requests_blocked_total"
+          }
+        },
+        {
+          "text": "Alert file is a Prometheus rule group",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/*.y*ml",
+            "regex": "(?m)^\\s*groups:"
+          }
+        },
+        {
+          "text": "Does not rely on the upstreams_healthy gauge",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "caddy_reverse_proxy_upstreams_healthy\\s*==\\s*0"
+          }
+        },
+        {
+          "text": "Explains that probes do not cover the upstream",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(healthz|readyz|probe)[^.\\n]{0,200}(not|n.t|only)[^.\\n]{0,120}(upstream|app|process)|(only|just)[^.\\n]{0,80}process[^.\\n]{0,80}(up|alive|running)"
+          }
+        },
+        {
+          "text": "Says to restart to enable the ports",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout|recreate"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b9\\d{5}\\b"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "sighup-did-not-apply",
+      "prompt": "I moved the /search route in waf.yaml (this directory) from detect_only back to blocking, ran kill -HUP on Barbacana, and the log says 'config reloaded' and waf_config_reload_total went up. But an SQL injection probe on /search still gets 200. Is the WAF broken? What should I do?",
+      "expected_output": "Explains that in v0.9.7 SIGHUP does not apply route-level mode edits (Caddy reports config is unchanged) despite the success log and counter, that waf_mode_info is misleading, and tells them to restart and then verify with the probe. Edits the file to blocking.",
+      "files": [
+        "files/2"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "detect_only removed from the config",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "mode:\\s*detect_only"
+          }
+        },
+        {
+          "text": "Tells the user to restart instead of reloading",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        },
+        {
+          "text": "Explains SIGHUP did not apply the edit",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(not|n.t|does not|doesn.t)[^.\\n]{0,80}(appl|pick|take|re-?read)|config is unchanged|unchanged"
+          }
+        },
+        {
+          "text": "Warns that the success log or metric is not proof",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(log|metric|counter|waf_mode_info)[^.\\n]{0,160}(not|n.t|mislead|misreport|doesn.t)[^.\\n]{0,100}(prove|proof|mean|reliable|trust|apply|applied)"
+          }
+        },
+        {
+          "text": "Verifies by probing for 403",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)403|probe|OR(%20|\\+| )1(%3D|=)1"
+          }
+        },
+        {
+          "text": "Does not claim the WAF is broken beyond reload",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "(?i)reinstall|downgrade"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b9\\d{5}\\b"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ecs-siem-and-tracing",
+      "prompt": "We ship logs to Elastic and traces to an OpenTelemetry collector at otel-collector.observability:4317 (gRPC, inside the cluster, no TLS). Update waf.yaml in this directory so Barbacana's audit logs use the Elastic-native format and it exports traces. Also tell me how to line up a blocked request in Elastic with its trace.",
+      "expected_output": "Sets audit_log.format ecs and tracing enabled with the collector endpoint, validates, says restart needed, and explains ECS events carry trace.id/span.id (OCSF does not), plus filtering operational lines at the collector.",
+      "files": [
+        "files/3"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "ECS audit format",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^\\s*format:\\s*ecs"
+          }
+        },
+        {
+          "text": "Tracing enabled",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)tracing:.*?enabled:\\s*true"
+          }
+        },
+        {
+          "text": "Collector endpoint",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "otel-collector\\.observability:4317"
+          }
+        },
+        {
+          "text": "No plaintext credentials added",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?i)authorization|api[-_]?key|password"
+          }
+        },
+        {
+          "text": "Mentions restart",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        },
+        {
+          "text": "Correlates via trace.id",
+          "check": {
+            "type": "output_contains",
+            "regex": "trace\\.id"
+          }
+        },
+        {
+          "text": "Mentions filtering non-audit lines",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(filter|drop|ignore|exclude)[^.\\n]{0,120}(caddy|operational|slog|non-audit|other lines|startup)"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b9\\d{5}\\b"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "healthy-but-502",
+      "prompt": "Users get a 502 with an empty body from shop.example.com, but the Kubernetes probes are green and nothing was changed on our side. waf.yaml, a metrics scrape (metrics.txt) and a probe check (healthcheck.txt) are in this directory. What is going on and what do we do?",
+      "expected_output": "Reads the metrics: waf_upstream_errors_total{kind=connection_refused} dominates and almost nothing is blocked, so the upstream app:3000 is unreachable, not the WAF. Probes are green because they only check the process. Does not change protections or mode. Suggests checking the app/service/port.",
+      "files": [
+        "files/4"
+      ],
+      "assertions": [
+        {
+          "text": "Does not disable protections",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^\\s*disable:"
+          }
+        },
+        {
+          "text": "Does not switch to detect-only",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "mode:\\s*detect_only"
+          }
+        },
+        {
+          "text": "Identifies connection refused to the upstream",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)connection[_ ]refused"
+          }
+        },
+        {
+          "text": "Names the upstream app:3000",
+          "check": {
+            "type": "output_contains",
+            "regex": "app:3000"
+          }
+        },
+        {
+          "text": "Says it is not the WAF blocking",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(not|n.t|isn.t|aren.t)[^.\\n]{0,100}(block|WAF)|(WAF|barbacana)[^.\\n]{0,80}(not|n.t)[^.\\n]{0,40}(cause|blocking|at fault|the problem)"
+          }
+        },
+        {
+          "text": "Explains why probes are green",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(healthz|readyz|probe)[^.\\n]{0,200}(only|just|not|n.t)[^.\\n]{0,120}(process|upstream)"
+          }
+        },
+        {
+          "text": "Points at the upstream service, endpoints or port",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(service|endpoint|pod|port|dns|listening)"
+          }
+        },
+        {
+          "text": "Does not expose CRS rule IDs",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "\\b9\\d{5}\\b"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "everyone-gets-429",
+      "prompt": "Since we added the global rate limit in waf.yaml (this directory), practically every customer gets 429 during the day, even though no single customer is that busy. Barbacana runs as 3 replicas behind our cloud load balancer. Work out why and fix it.",
+      "expected_output": "Diagnoses source type ip behind a load balancer (all requests share the balancer's address, one bucket), switches to source header X-Forwarded-For (noting the LB must set/sanitise it), validates, restarts, and states the caveats: per-replica counters, reset on restart, not a hard quota.",
+      "files": [
+        "files/5"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Uses a header source",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)rate_limit:.*?type:\\s*header"
+          }
+        },
+        {
+          "text": "Header key is X-Forwarded-For",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?i)key:\\s*X-Forwarded-For"
+          }
+        },
+        {
+          "text": "No longer keys on ip",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "type:\\s*ip"
+          }
+        },
+        {
+          "text": "Explains the load balancer address problem",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(load balancer|proxy|balancer)[^.\\n]{0,160}(address|ip|bucket|same|single|shared)"
+          }
+        },
+        {
+          "text": "Warns the header must be set or sanitised by the proxy",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(sanitis|sanitiz|strip|overwrit|trust|forge|spoof)"
+          }
+        },
+        {
+          "text": "Mentions per-replica counting",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(replica|instance|pod)[^.\\n]{0,120}(separate|independent|each|own|N ?[x\u00d7])|(separate|independent|each|own)[^.\\n]{0,80}(replica|instance)"
+          }
+        },
+        {
+          "text": "Mentions restart",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        },
+        {
+          "text": "Does not suggest IP blocking",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "(?i)block (the )?ips?|ip (block|allow)list|fail2ban"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+$ curl -s -w ' %{http_code}\n' http://barbacana:8081/healthz
+ok 200
+$ curl -s -w ' %{http_code}\n' http://barbacana:8081/readyz
+ok 200
+$ curl -si https://shop.example.com/ | head -1
+HTTP/2 502

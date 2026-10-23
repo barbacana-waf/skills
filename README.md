@@ -11,7 +11,7 @@ Named `barbacana-waf-*` so the product category is visible in the skills.sh list
 | [`barbacana-waf-install`](skills/barbacana-waf-install) | Put Barbacana in front of an app (Docker Compose, Kubernetes, bare binary + systemd), pick TLS mode, pin and verify a release, smoke-test it | Ready (v0.1) |
 | [`barbacana-waf-configure`](skills/barbacana-waf-configure) | Add and change routes, headers, CORS, uploads and limits using a validate loop | Ready (v0.1) |
 | [`barbacana-waf-tune`](skills/barbacana-waf-tune) | Find which protection blocked a legitimate request from the audit log and relax the narrowest thing that fixes it, never a whole family | Ready (v0.1) |
-| `barbacana-waf-operate` | Monitoring, alerting, audit logs, troubleshooting | Planned |
+| [`barbacana-waf-operate`](skills/barbacana-waf-operate) | Metrics, alert rules, Grafana, audit logs and SIEM, tracing, config reloads, troubleshooting a failing instance | Ready (v0.1) |
 
 Planned skills are hidden from install (`metadata.internal: true`) until they are finished.
 
@@ -39,7 +39,7 @@ The skill makes the agent propose each step, validate the config with `barbacana
 
 - **Query, don't memorise.** Skills tell the agent to run `barbacana --catalog`, `--catalog-leaf <id>` and `--validate` instead of hardcoding protection names or schema fields, so they stay correct as Barbacana changes.
 - **Barbacana's contract holds.** The CLI is flag-only (no subcommands). Skills never expose Caddy or CRS rule IDs; protections are referred to by their catalog names.
-- **Honest scope.** No rate limiting, IP blocking or CAPTCHA advice, because Barbacana does not provide them.
+- **Honest scope.** No IP blocking, CAPTCHA or TLS fingerprinting advice, because Barbacana does not provide them. Rate limiting is supported and handled as configuration.
 - **Safe defaults.** Pinned versions, no `disable` entries at install, metrics and health ports kept internal.
 
 ## Repository layout

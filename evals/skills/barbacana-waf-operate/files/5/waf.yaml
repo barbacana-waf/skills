@@ -1,0 +1,15 @@
+version: v1alpha1
+# Barbacana runs as 3 replicas behind a cloud load balancer that terminates TLS
+# and adds X-Forwarded-For.
+port: 8080
+health_port: 8081
+metrics_port: 9090
+global:
+  rate_limit:
+    requests: 20
+    window: 1s
+    source:
+      type: ip
+routes:
+  - id: shop
+    upstream: http://shop:8000
