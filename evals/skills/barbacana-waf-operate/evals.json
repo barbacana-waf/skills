@@ -152,7 +152,7 @@
       "id": 3,
       "name": "ecs-siem-and-tracing",
       "prompt": "We ship logs to Elastic and traces to an OpenTelemetry collector at otel-collector.observability:4317 (gRPC, inside the cluster, no TLS). Update waf.yaml in this directory so Barbacana's audit logs use the Elastic-native format and it exports traces. Also tell me how to line up a blocked request in Elastic with its trace.",
-      "expected_output": "Sets audit_log.format ecs and tracing enabled with the collector endpoint, validates, says restart needed, and explains ECS events carry trace.id/span.id (OCSF does not), plus filtering operational lines at the collector.",
+      "expected_output": "Sets audit_log.format ecs and tracing enabled with the collector endpoint, validates, says restart needed, and explains ECS events carry trace.id/span.id (OCSF has metadata.trace_id/span_id), plus filtering operational lines at the collector.",
       "files": [
         "files/3"
       ],

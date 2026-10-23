@@ -17,7 +17,7 @@ An event is written only when a request **matched at least one protection**: blo
 | weakness classes | `barbacana.cwe` | same |
 | client | `src_endpoint.ip`, `.port` | `client.ip`, `.port` |
 | method, path, URL | `http_request.http_method`, `.url.path`, `.url.url_string` | `http.request.method`, `url.path`, `url.full` |
-| trace correlation | none in v0.9.7 | `trace.id`, `span.id` (when `tracing.enabled`) |
+| trace correlation (when `tracing.enabled`) | `metadata.trace_id`, `metadata.span_id` | `trace.id`, `span.id` |
 
 CRS rule ids are in `barbacana.matched_rules` and `firewall_rule`/`rule.id` for SIEM correlation only; do not copy them into answers or config.
 
