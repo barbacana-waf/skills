@@ -1,0 +1,9 @@
+version: v1alpha1
+port: 8080
+routes:
+  - id: shop
+    match:
+      paths: ["/shop/*"]
+    upstream: http://shop:8000
+  - id: web
+    upstream: http://web:3000

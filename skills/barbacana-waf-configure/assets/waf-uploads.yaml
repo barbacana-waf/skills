@@ -1,0 +1,19 @@
+version: v1alpha1
+port: 8080
+routes:
+  # Narrow route for the upload endpoint only; the rest of the app keeps the defaults.
+  - id: uploads
+    match:
+      paths: ["/upload", "/upload/*"]
+    upstream: http://app:8000
+    accept:
+      methods: [POST]
+      content_types: [multipart/form-data]
+      max_body_size: 60MB          # must cover file_limit x file_size plus form overhead
+    multipart:
+      file_limit: 5
+      file_size: 10MB
+      allowed_types: [image/png, image/jpeg, application/pdf]
+      double_extension: true
+  - id: app
+    upstream: http://app:8000

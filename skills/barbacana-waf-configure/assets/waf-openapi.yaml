@@ -1,0 +1,13 @@
+version: v1alpha1
+port: 8080
+routes:
+  - id: orders-api
+    match:
+      paths: ["/v1/*"]
+    upstream: http://orders:8000
+    # Spec paths are checked AFTER the rewrite, so list them as the upstream sees them.
+    rewrite:
+      strip_prefix: /v1
+    openapi:
+      spec: /etc/barbacana/specs/orders.yaml   # must exist and be mounted into the container
+      strict: true                             # false = log violations only

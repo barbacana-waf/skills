@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info: {title: Orders, version: "1.0"}
+paths:
+  /orders:
+    get:
+      responses: {"200": {description: list}}
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object}
+      responses: {"201": {description: created}}
+  /orders/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses: {"200": {description: one}}

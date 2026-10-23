@@ -1,0 +1,11 @@
+version: v1alpha1
+port: 8080
+routes:
+  - id: orders
+    match:
+      paths: ["/v1/*"]
+    upstream: http://orders:8000
+    rewrite:
+      strip_prefix: /v1
+  - id: web
+    upstream: http://web:3000

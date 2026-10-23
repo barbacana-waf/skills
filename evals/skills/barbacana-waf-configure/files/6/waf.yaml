@@ -1,0 +1,13 @@
+version: v1alpha1
+port: 8080
+health_port: 8081
+global:
+  accept:
+    max_body_size: 5MB
+routes:
+  - id: api
+    match:
+      paths: ["/api/*"]
+    upstream: http://api:8000
+  - id: web
+    upstream: http://web:3000

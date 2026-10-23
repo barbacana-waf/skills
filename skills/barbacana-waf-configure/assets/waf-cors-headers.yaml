@@ -1,0 +1,19 @@
+version: v1alpha1
+port: 8080
+routes:
+  - id: api
+    match:
+      paths: ["/api/*"]
+    upstream: http://api:8000
+    # CORS is off unless this block exists. Never use "*" with allow_credentials.
+    cors:
+      allow_origins: ["https://app.example.com"]
+      allow_methods: [GET, POST, PUT, DELETE]
+      allow_headers: [Authorization, Content-Type]
+      allow_credentials: true
+      max_age: 600
+    # The leaf turns the header on; the value lives in inject, keyed by the leaf name.
+    enable: [response-headers-add-csp]
+    response_headers:
+      inject:
+        response-headers-add-csp: "default-src 'none'; frame-ancestors 'none'"

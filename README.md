@@ -9,7 +9,7 @@ Named `barbacana-waf-*` so the product category is visible in the skills.sh list
 | Skill | What the agent can do with it | Status |
 |---|---|---|
 | [`barbacana-waf-install`](skills/barbacana-waf-install) | Put Barbacana in front of an app (Docker Compose, Kubernetes, bare binary + systemd), pick TLS mode, pin and verify a release, smoke-test it | Ready (v0.1) |
-| `barbacana-waf-configure` | Add and change routes, headers, CORS, uploads and limits using a validate loop | Planned |
+| [`barbacana-waf-configure`](skills/barbacana-waf-configure) | Add and change routes, headers, CORS, uploads and limits using a validate loop | Ready (v0.1) |
 | [`barbacana-waf-tune`](skills/barbacana-waf-tune) | Find which protection blocked a legitimate request from the audit log and relax the narrowest thing that fixes it, never a whole family | Ready (v0.1) |
 | `barbacana-waf-operate` | Monitoring, alerting, audit logs, troubleshooting | Planned |
 

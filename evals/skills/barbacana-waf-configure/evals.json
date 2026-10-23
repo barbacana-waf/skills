@@ -1,1 +1,471 @@
-{"skill_name": "barbacana-waf-configure", "evals": []}
+{
+  "skill_name": "barbacana-waf-configure",
+  "evals": [
+    {
+      "id": 1,
+      "name": "add-api-route-before-catchall",
+      "prompt": "Our orders service runs at orders:8000 and takes JSON only. Add a route so /orders and everything under /orders/ goes to it, and the service sees paths without the /orders prefix. Bodies should not be larger than 1MB. waf.yaml is in this directory.",
+      "expected_output": "New route with its own id, strip_prefix, json-only, 1MB, placed above the existing catch-all (routes are first-match in file order in v0.9.7), validates, restart mentioned.",
+      "files": [
+        "files/1"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Upstream is the orders service",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://orders:8000"
+          }
+        },
+        {
+          "text": "Strips the prefix",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "strip_prefix:\\s*/orders"
+          }
+        },
+        {
+          "text": "Matches both the bare path and children",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)paths:.*?/orders\\b.*?/orders/\\*"
+          }
+        },
+        {
+          "text": "JSON-only content type",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "content_types:\\s*\\[\\s*application/json\\s*\\]|content_types:\\s*\\n\\s*-\\s*application/json"
+          }
+        },
+        {
+          "text": "1MB body limit",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "max_body_size:\\s*1MB"
+          }
+        },
+        {
+          "text": "New route is listed before the catch-all web route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)upstream:\\s*http://orders:8000.*id:\\s*web|id:\\s*orders.*id:\\s*web"
+          }
+        },
+        {
+          "text": "Existing web route is kept",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://web:3000"
+          }
+        },
+        {
+          "text": "Adds no disable entries",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Tells the user to restart or roll out, not reload",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cors-with-cookies-and-csp",
+      "prompt": "Our React app at https://app.example.com calls the /api routes with cookies, and the browser reports a CORS error on preflight. Fix it, and also add a Content-Security-Policy header of \"default-src 'self'\" to the web route. waf.yaml is in this directory.",
+      "expected_output": "CORS block on the api route with the exact origin, allow_credentials true, no wildcard; OPTIONS added to the methods list so preflight is not a 405; CSP enabled via the leaf and the value under inject.",
+      "files": [
+        "files/2"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Exact origin listed",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "allow_origins:.*https://app\\.example\\.com"
+          }
+        },
+        {
+          "text": "No wildcard origin",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "allow_origins:.*\\*"
+          }
+        },
+        {
+          "text": "Credentials allowed",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "allow_credentials:\\s*true"
+          }
+        },
+        {
+          "text": "OPTIONS allowed on the api route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "methods:\\s*\\[[^\\]]*OPTIONS"
+          }
+        },
+        {
+          "text": "CSP leaf enabled",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)enable:.*response-headers-add-csp"
+          }
+        },
+        {
+          "text": "CSP value injected",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "response-headers-add-csp:\\s*[\"']default-src 'self'[\"']"
+          }
+        },
+        {
+          "text": "Does not use the removed route.csp.policy key",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "csp:\\s*\\n|policy:"
+          }
+        },
+        {
+          "text": "Adds no disable entries",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Explains preflight needs OPTIONS",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)OPTIONS|preflight"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "avatar-upload-narrow-route",
+      "prompt": "Add avatar uploads: POST /profile/avatar on the app, PNG and JPEG only, max 2MB per file, one file per request. Only that endpoint. waf.yaml is in this directory.",
+      "expected_output": "A narrow route above the app route, multipart/form-data, allowed_types png/jpeg, file_size 2MB, file_limit 1, POST only, body limit sized to match; global untouched; says allowed_types checks declared MIME not content.",
+      "files": [
+        "files/3"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Route scoped to the endpoint",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "/profile/avatar"
+          }
+        },
+        {
+          "text": "Multipart content type accepted",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "multipart/form-data"
+          }
+        },
+        {
+          "text": "Allowed types set",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)allowed_types:.*image/png.*image/jpeg|allowed_types:.*image/jpeg.*image/png"
+          }
+        },
+        {
+          "text": "Per-file size 2MB",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "file_size:\\s*2MB"
+          }
+        },
+        {
+          "text": "One file per request",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "file_limit:\\s*1\\b"
+          }
+        },
+        {
+          "text": "POST only",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "methods:\\s*\\[\\s*POST\\s*\\]|methods:\\s*\\n\\s*-\\s*POST"
+          }
+        },
+        {
+          "text": "Does not touch global",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?m)^global:"
+          }
+        },
+        {
+          "text": "Narrow route is listed before the catch-all app route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)/profile/avatar.*id:\\s*app\\b"
+          }
+        },
+        {
+          "text": "Adds no disable entries",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "openapi-after-rewrite",
+      "prompt": "Turn on OpenAPI validation for the orders route using specs/orders.yaml in this directory. We run Barbacana in Docker. waf.yaml is here too.",
+      "expected_output": "openapi.spec added to the orders route; notes that the route strips /v1 so the spec's paths (/orders) already match the rewritten path; notes the spec file must be mounted into the container and that --validate does not check the file; suggests strict: false first or at least discusses rollout.",
+      "files": [
+        "files/4"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Spec configured on the orders route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)id:\\s*orders.*?spec:\\s*\\S*orders\\.yaml.*?id:\\s*web"
+          }
+        },
+        {
+          "text": "Does not add openapi to the web route",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)id:\\s*web.*openapi"
+          }
+        },
+        {
+          "text": "Keeps the rewrite",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "strip_prefix:\\s*/v1"
+          }
+        },
+        {
+          "text": "Adds no disable entries",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Mentions mounting the spec into the container",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)mount|volume"
+          }
+        },
+        {
+          "text": "Explains paths are checked after the rewrite",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)after the (rewrite|prefix)|rewritten|/orders"
+          }
+        },
+        {
+          "text": "Mentions log-only rollout (strict false) or the audit log",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)strict:\\s*false|log[- ]only|audit"
+          }
+        },
+        {
+          "text": "Tells the user to restart or roll out, not reload",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "routes-d-not-loaded",
+      "prompt": "Set up routes.d so the payments team can own their own routes file at routes.d/payments.yaml without touching waf.yaml. Add a /pay/* route to payments:8000 there. waf.yaml is in this directory.",
+      "expected_output": "Detects or states that routes.d is not read by v0.9.7 (a route there is silently ignored), does not claim it works, and offers a working alternative (routes in waf.yaml with CODEOWNERS, or a CI merge step). Any routes.d file has no global key.",
+      "files": [
+        "files/5"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Says routes.d is not loaded or is ignored",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(not|n't|never) (loaded|read|supported|picked up|implemented)|ignored|no loader|silently"
+          }
+        },
+        {
+          "text": "Offers an alternative",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)CODEOWNERS|concatenat|merge|single (waf\\.yaml|file)|in waf\\.yaml"
+          }
+        },
+        {
+          "text": "Existing routes are kept",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)id:\\s*shop.*id:\\s*web"
+          }
+        },
+        {
+          "text": "Does not claim success without caveat",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "(?i)routes\\.d (is|are) now (active|live|loaded)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "big-body-for-one-endpoint",
+      "prompt": "Our /api/import endpoint takes CSV files up to 200MB. Right now it fails. Please raise the body limit so it works. waf.yaml is in this directory.",
+      "expected_output": "Does not raise the global limit. Adds a narrow /api/import route above the /api/* route with max_body_size 200MB or a little more, repeats upstream, and says what is now looser.",
+      "files": [
+        "files/6"
+      ],
+      "assertions": [
+        {
+          "text": "Config still validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Narrow route for the import path",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "/api/import"
+          }
+        },
+        {
+          "text": "Limit raised to at least 200MB on a route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "max_body_size:\\s*(2\\d\\d|[3-9]\\d\\d)MB|max_body_size:\\s*1GB|max_body_size:\\s*[1]\\.?\\d*GB"
+          }
+        },
+        {
+          "text": "Global limit unchanged",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)global:\\s*\\n\\s*accept:\\s*\\n\\s*max_body_size:\\s*5MB"
+          }
+        },
+        {
+          "text": "Import route comes before the broad api route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)/api/import.*?id:\\s*api\\b|/api/import.*?/api/\\*"
+          }
+        },
+        {
+          "text": "Upstream repeated for the new route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)/api/import.*?upstream:\\s*http://api:8000"
+          }
+        },
+        {
+          "text": "Adds no disable entries",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Says what is now looser",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)larger|looser|200 ?MB|more (memory|data)|only (this|that) (route|endpoint)"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+version: v1alpha1
+# Plain HTTP behind a load balancer. Change to `host: app.example.com` for auto-TLS (remove `port`).
+port: 8080
+health_port: 8081
+routes:
+  # JSON API under /api/, mounted at / on the upstream.
+  - id: api
+    match:
+      paths: ["/api/*"]
+    upstream: http://api:8000
+    upstream_timeout: 30s
+    rewrite:
+      strip_prefix: /api
+    accept:
+      methods: [GET, POST, PUT, PATCH, DELETE]
+      content_types: [application/json]
+      max_body_size: 1MB
+  # Everything else: the web app. Every protection stays on.
+  - id: web
+    upstream: http://web:3000
