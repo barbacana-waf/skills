@@ -3,9 +3,12 @@
 Each skill keeps its eval definitions next to it:
 
 ```
-skills/<skill>/evals/
+evals/skills/<skill>/
 ├── evals.json     # prompts + machine-checkable assertions
 └── files/<id>/    # fixture project copied into the agent's working dir (optional)
+
+They sit here, not under `skills/<skill>/`, because the `skills` CLI copies a skill
+folder whole into every install and has no ignore mechanism.
 ```
 
 This folder holds the harness that runs them.
@@ -15,7 +18,7 @@ This folder holds the harness that runs them.
 For every eval, twice (**with_skill** and **without_skill**, the baseline):
 
 1. Creates a fresh working dir, copies `files/<id>/` into it.
-2. With the skill: copies the skill in as `.claude/skills/<skill>/` (the `evals/` folder is left out so the agent never sees the assertions).
+2. With the skill: copies the skill in as `.claude/skills/<skill>/`, exactly what an install contains, so the agent never sees the assertions.
 3. Runs `claude -p` headless with the eval prompt. Both arms get the same sandbox note (no Docker, cluster or services; write files, describe commands), the same read/write tools, and only `barbacana` and `gh release list` as shell commands. `--setting-sources project` keeps your personal skills out of the run.
 4. Grades the files and the final answer with `grade.py` and prints a with/without table.
 

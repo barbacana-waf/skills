@@ -41,7 +41,7 @@ trap 'rm -rf "$BIN_DIR"' EXIT
 
 skills=${SKILL:-$(cd "$ROOT/skills" && ls)}
 for skill in $skills; do
-  ej="$ROOT/skills/$skill/evals/evals.json"
+  ej="$ROOT/evals/skills/$skill/evals.json"
   [ -f "$ej" ] || continue
   ids=$(jq -r '.evals[].id' "$ej")
   [ -z "$EVAL" ] || ids=$EVAL
@@ -52,12 +52,12 @@ for skill in $skills; do
       [ -z "$ONLY" ] || [ "$arm" = "${ONLY}_skill" ] || continue
       run="$ROOT/evals/workspace/iteration-$ITER/$skill/eval-$id/$arm"
       rm -rf "$run"; mkdir -p "$run/workdir"
-      fixtures="$ROOT/skills/$skill/evals/files/$id"
+      fixtures="$ROOT/evals/skills/$skill/files/$id"
       [ ! -d "$fixtures" ] || cp -R "$fixtures/." "$run/workdir/"
       if [ $arm = with_skill ]; then
         mkdir -p "$run/workdir/.claude/skills"
-        # never ship evals (assertions) to the agent
-        rsync -a --exclude evals "$ROOT/skills/$skill" "$run/workdir/.claude/skills/"
+        # the installed layout: evals live outside skills/, so nothing to exclude
+        cp -R "$ROOT/skills/$skill" "$run/workdir/.claude/skills/"
       fi
       echo "== $skill eval $id $arm"
       if [ $DRY = 1 ]; then echo "   workdir: $run/workdir"; echo "   prompt: $prompt"; continue; fi

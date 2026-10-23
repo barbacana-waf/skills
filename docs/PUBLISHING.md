@@ -57,7 +57,9 @@ npx skills add barbacana-waf/skills --skill barbacana-waf-install --agent claude
 ls .claude/skills/barbacana-waf-install                              # SKILL.md, references/, assets/
 ```
 
-Then start an agent in that directory and ask it to put Barbacana in front of an app. Confirm it loads the skill and that `evals/` was not installed with it, if the CLI copies the whole folder.
+Then start an agent in that directory and ask it to put Barbacana in front of an app, and confirm it loads the skill.
+
+The CLI copies a skill folder whole and has no ignore mechanism, so anything under `skills/<name>/` ships to every user. Eval prompts, assertions and fixtures therefore live outside it, under `evals/skills/<name>/`. Keep it that way: an install should contain only `SKILL.md`, `references/`, `assets/` and (for tune) `scripts/`.
 
 Optional: `npx skills use barbacana-waf/skills --skill barbacana-waf-install` generates a prompt without installing.
 

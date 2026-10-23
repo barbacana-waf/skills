@@ -1,6 +1,8 @@
 ---
 name: template-skill
 description: "What this skill does AND when to use it. Be specific and a little pushy: list adjacent phrasings. This is the only thing that triggers the skill."
+metadata:
+  internal: true  # the template is not a skill: keep it out of CLI discovery
 ---
 
 # Skill name

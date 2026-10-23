@@ -2,7 +2,7 @@
 # Grader regression test, no API calls: a known-good run must pass every
 # assertion for eval 1, a known-bad run must fail most of them.
 set -euo pipefail
-E=$(cd "$(dirname "$0")" && pwd); EJ=$E/../skills/barbacana-waf-install/evals/evals.json
+E=$(cd "$(dirname "$0")" && pwd); EJ=$E/skills/barbacana-waf-install/evals.json
 : "${BARBACANA_BIN:?set BARBACANA_BIN}"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 cp -R "$E/selftest/eval1-good" "$E/selftest/eval1-bad" "$tmp/"

@@ -48,9 +48,9 @@ The skill makes the agent propose each step, validate the config with `barbacana
 skills/<name>/
 ├── SKILL.md        # triggers + workflow (under 500 lines)
 ├── references/     # loaded on demand
-├── assets/         # sample configs and manifests (validated against a released Barbacana)
-└── evals/          # evals.json (prompts + assertions) and fixture projects
+└── assets/         # sample configs and manifests (validated against a released Barbacana)
 evals/              # harness to reproduce the evals, with and without the skill
+└── skills/<name>/  # evals.json (prompts + assertions) and fixture projects
 template/           # starting point for a new skill
 scripts/            # lint-skills.sh
 docs/PUBLISHING.md  # publishing to skills.sh and releasing updates
