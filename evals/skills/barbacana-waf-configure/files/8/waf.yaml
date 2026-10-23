@@ -1,0 +1,9 @@
+version: v1alpha1
+port: 8080
+routes:
+  - id: api
+    match:
+      paths: ["/v1/*"]
+    upstream: http://api:8000
+  - id: web
+    upstream: http://web:3000

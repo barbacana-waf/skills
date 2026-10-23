@@ -13,7 +13,7 @@ Gets a working Barbacana in front of the user's upstream and proves it with a sm
 - After every config edit, run `--validate` and fix what it reports before moving on.
 - Use protection names exactly as `barbacana --catalog` prints them. Never invent names.
 - Never show or suggest Caddy/Caddyfile syntax or CRS rule IDs. Protection names are the interface.
-- Out of scope for Barbacana: rate limiting, IP blocking, CAPTCHA, TLS fingerprinting. Say so instead of improvising.
+- Out of scope for Barbacana: IP blocking/allowlisting, CAPTCHA, TLS fingerprinting, volumetric DDoS. Rate limiting is supported (`rate_limit:` per route or in `global:`); route config changes belong to the configure skill.
 
 ## Workflow
 
@@ -48,7 +48,7 @@ The second request is a harmless classic SQL-injection probe; a 403 proves the W
 
 - `metrics_port` and `health_port` are off by default. When enabled, keep them on an internal network: `/metrics` exposes route IDs and protection names. Never publish them on a public port or Service.
 - Auto-TLS needs `data_dir` on a persistent volume, or certificates are re-requested on every restart and Let's Encrypt rate limits apply.
-- Do not suggest rate limiting, IP blocking or CAPTCHA; Barbacana does not do those.
+- Do not suggest IP blocking or CAPTCHA; Barbacana does not do those. Rate limiting is supported: hand off to `barbacana-waf-configure`.
 - Do not use edge images (`barbacana-edge`) in production; they are unsigned.
 
 ## References

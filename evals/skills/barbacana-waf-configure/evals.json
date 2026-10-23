@@ -466,6 +466,165 @@
           }
         }
       ]
+    },
+    {
+      "id": 7,
+      "name": "login-throttle-behind-lb",
+      "prompt": "Credential stuffing is hitting /login. Limit it to 5 attempts per minute per client. We run behind an ALB (see README.md); waf.yaml is in this directory.",
+      "expected_output": "rate_limit on a narrow /login route above the catch-all, header source X-Forwarded-For (not ip, since behind a load balancer), 5 per 60s; warns the header must be sanitised by the ALB; mentions 429, per-replica counters; restart.",
+      "files": [
+        "files/7"
+      ],
+      "assertions": [
+        {
+          "text": "Config validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Route scoped to /login",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "/login"
+          }
+        },
+        {
+          "text": "5 requests",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "requests:\\s*5\\b"
+          }
+        },
+        {
+          "text": "60 second window",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "window:\\s*(60s|1m)\\b"
+          }
+        },
+        {
+          "text": "Header source with X-Forwarded-For",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)type:\\s*header.*?key:\\s*X-Forwarded-For"
+          }
+        },
+        {
+          "text": "Does not key on the connection IP",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "type:\\s*ip"
+          }
+        },
+        {
+          "text": "Login route listed before the catch-all",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)/login.*id:\\s*app\\b"
+          }
+        },
+        {
+          "text": "Warns the proxy must sanitise the header",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)sanitis|sanitiz|overwrit|strip|spoof|forg|trust"
+          }
+        },
+        {
+          "text": "Mentions 429",
+          "check": {
+            "type": "output_contains",
+            "regex": "429"
+          }
+        },
+        {
+          "text": "Tells the user to restart",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)restart|rollout"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "per-api-key-limit",
+      "prompt": "Limit each customer of our /v1 API to 20 requests per second, by their X-Api-Key header. They call from many IPs. waf.yaml is in this directory. Also, can this be our billing quota?",
+      "expected_output": "rate_limit with header source X-Api-Key, 20 per 1s on the api route; answers no to billing quota (in-memory, resets on restart, per replica).",
+      "files": [
+        "files/8"
+      ],
+      "assertions": [
+        {
+          "text": "Config validates",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Header source X-Api-Key",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)type:\\s*header.*?key:\\s*X-Api-Key"
+          }
+        },
+        {
+          "text": "20 requests per second",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)requests:\\s*20\\b.*?window:\\s*1s"
+          }
+        },
+        {
+          "text": "Applied to the api route, not the web route",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)id:\\s*api\\b.*?rate_limit.*?id:\\s*web"
+          }
+        },
+        {
+          "text": "Web route has no rate limit",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)id:\\s*web\\b.*rate_limit"
+          }
+        },
+        {
+          "text": "No global rate limit",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "(?s)global:.*rate_limit"
+          }
+        },
+        {
+          "text": "Says it is not a billing quota",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)not (a )?(hard )?(quota|billing)|(quota|billing).*(not|n't)|shouldn't|do not use"
+          }
+        },
+        {
+          "text": "Explains restart reset or per-replica counting",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)reset|memory|each (replica|instance)|per[- ](replica|instance)"
+          }
+        }
+      ]
     }
   ]
 }

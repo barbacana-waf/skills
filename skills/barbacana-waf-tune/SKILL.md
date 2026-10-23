@@ -13,7 +13,7 @@ Find which protection blocked a legitimate request, relax the narrowest thing th
 - After every config edit, run `--validate` and fix what it reports before moving on.
 - Use protection names exactly as `barbacana --catalog` prints them. Never invent names, and never guess a name from the payload: read it from the audit log.
 - Never show or suggest Caddy/Caddyfile syntax or CRS rule IDs. The audit log and catalog contain rule IDs for SIEM use; do not copy them into configs, comments or your answer. Protection names are the interface.
-- Out of scope for Barbacana: rate limiting, IP blocking, CAPTCHA, TLS fingerprinting. Say so instead of improvising.
+- Out of scope for Barbacana: IP blocking/allowlisting, CAPTCHA, TLS fingerprinting, volumetric DDoS. Rate limiting is supported (`rate_limit:` per route or in `global:`); route config changes belong to the configure skill.
 
 ## Workflow
 

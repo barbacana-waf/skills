@@ -13,7 +13,7 @@ Changes `waf.yaml` in small steps, proves each step with `--validate` and `--ren
 - After every config edit, run `--validate` and fix what it reports before moving on.
 - Use protection names exactly as `barbacana --catalog` prints them. Never invent names.
 - Never show or suggest Caddy/Caddyfile syntax or CRS rule IDs. Protection names are the interface.
-- Out of scope for Barbacana: rate limiting, IP blocking, CAPTCHA, TLS fingerprinting. Say so instead of improvising.
+- Out of scope for Barbacana: IP blocking/allowlisting, CAPTCHA, TLS fingerprinting, volumetric DDoS. Rate limiting is supported (`rate_limit:` per route or in `global:`); route config changes belong to the configure skill.
 
 ## Workflow
 
@@ -27,6 +27,7 @@ Changes `waf.yaml` in small steps, proves each step with `--validate` and `--ren
    | body size, methods, content types, uploads | `assets/waf-uploads.yaml` | `references/limits-and-uploads.md` |
    | CORS, security headers, CSP | `assets/waf-cors-headers.yaml` | `references/cors-and-headers.md` |
    | OpenAPI validation | `assets/waf-openapi.yaml` | `references/openapi.md` |
+   | rate limiting (login throttle, per-key limit) | `assets/waf-rate-limit.yaml` | `references/rate-limit.md` |
    | per-team `routes.d` files | none | `references/routes-d.md` (read before promising anything) |
 
 4. **Validate.** `barbacana --config waf.yaml --validate` must print `config valid`; fix errors using the message, which names the field. Unknown keys are rejected, and a key valid at `global:` may not exist per route (for example `protocol:`). `references/validate-and-render.md` lists the common errors. `--validate` does **not** catch everything: see the next step.
@@ -50,7 +51,7 @@ Changes `waf.yaml` in small steps, proves each step with `--validate` and `--ren
 - Relaxing limits (bigger bodies, more methods, wider `allow_origins`) is a security decision: say what the change allows in the report. Never use `*` as a CORS origin on a route that sends credentials; Barbacana rejects it, and the answer is a list of exact origins, not removing `allow_credentials` silently.
 - Keep upload routes narrow (`match.paths` for the endpoint only), with `allowed_types` set. Do not raise `max_body_size` globally for one endpoint.
 - Do not add a protection name you have not seen in `barbacana --catalog`. Do not edit `routes.d` files or any other team's routes without being asked.
-- Rate limiting, IP blocking and CAPTCHA are not part of this skill; see the shared ground rules.
+- Rate limiting is configured with `rate_limit:` (`references/rate-limit.md`). A `header` source is only safe when the proxy in front sanitises that header; a client-controlled value lets an attacker rotate the key and bypass the limit. IP blocking and CAPTCHA are not part of Barbacana.
 
 ## References
 
@@ -60,6 +61,7 @@ Changes `waf.yaml` in small steps, proves each step with `--validate` and `--ren
 | `references/limits-and-uploads.md` | body size, methods, content types, multipart uploads, JSON depth, and the status each limit returns |
 | `references/cors-and-headers.md` | CORS, injected security headers, CSP, stripping response headers, custom block page |
 | `references/openapi.md` | adding or changing `openapi.spec`, strictness, path vs rewrite, which violation returns which status |
+| `references/rate-limit.md` | the user wants to throttle logins, an API key or a client, or asks about 429s |
 | `references/routes-d.md` | the user asks for per-team files, `routes_dir` or `routes.d` |
 | `references/validate-and-render.md` | `--validate` fails, or you need to read the render or choose where in the file to put a setting |
 | `assets/*.yaml` | starting points; each validates under v0.9.x. Replace upstreams, paths and origins |

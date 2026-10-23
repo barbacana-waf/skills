@@ -1,0 +1,6 @@
+version: v1alpha1
+port: 8080
+health_port: 8081
+routes:
+  - id: app
+    upstream: http://app:8000

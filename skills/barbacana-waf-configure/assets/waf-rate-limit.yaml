@@ -1,0 +1,27 @@
+version: v1alpha1
+# Plain HTTP behind a load balancer, so the client IP arrives in X-Forwarded-For.
+port: 8080
+health_port: 8081
+global:
+  # Default for every route that has no rate_limit of its own.
+  rate_limit:
+    requests: 50
+    window: 1s
+    source:
+      type: header
+      key: X-Forwarded-For
+routes:
+  - id: login
+    match:
+      paths: ["/login"]
+    upstream: http://app:8000
+    # Replaces the global block entirely (no merging), so repeat the source.
+    # Only safe if the load balancer overwrites any client-sent X-Forwarded-For.
+    rate_limit:
+      requests: 5
+      window: 60s
+      source:
+        type: header
+        key: X-Forwarded-For
+  - id: app
+    upstream: http://app:8000
