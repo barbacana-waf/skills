@@ -20,7 +20,7 @@ Day-2 operations: observe, alert, troubleshoot. Read what the instance reports b
 - **Health and metrics are opt-in.** `health_port` and `metrics_port` default to 0 (no listener). If they are off, enabling them is a config change plus a restart; `assets/waf-observability.yaml` shows the keys. Keep both on an internal network: `/metrics` lists route ids and protection names.
 - **`/healthz` and `/readyz` only prove the process is up.** Both always return `200 ok`. They do not check the upstream, the config, or whether the last reload took. Never conclude "healthy" from them alone; see `references/troubleshooting.md`.
 - **Only blocked or detected requests reach the audit log.** Clean requests are counted in metrics but not logged. A missing event for a request means it matched nothing, not that logging is broken.
-- **SIGHUP reload is unreliable in v0.9.7.** It re-reads the file but most edits are not applied, while logs and metrics still say "reloaded". Restart instead. Details in `references/reload.md`.
+- **Check the version before you reload.** From v0.10.0, SIGHUP applies route and protection edits and keeps the old config if the new one fails; ports, tracing and the audit format still need a restart and are ignored silently. On v0.9.7 or older SIGHUP applied almost nothing while logging "reloaded": restart instead. Always prove a reload by behaviour. Details in `references/reload.md`.
 - Rate limiting has no metric of its own: it shows up as `protection="rate-limit"` on the blocked and detected counters, and as 429 responses.
 
 ## Workflow
@@ -33,13 +33,13 @@ Day-2 operations: observe, alert, troubleshoot. Read what the instance reports b
    | to scrape, graph or alert | add scrape config and alert rules; import the dashboard | `references/metrics.md`, `references/alerts-and-dashboards.md`, `assets/prometheus-*.yaml` |
    | audit logs in a SIEM | choose OCSF or ECS, ship stdout, map fields | `references/audit-and-siem.md` |
    | traces | add the `tracing:` block, verify spans arrive | `references/tracing.md` |
-   | to apply a config change | validate, then restart (not SIGHUP) | `references/reload.md` |
+   | to apply a config change | validate, then SIGHUP (v0.10.0+) or restart | `references/reload.md` |
    | to know why something is failing, slow or blocked | work the symptom table | `references/troubleshooting.md` |
    | to size or check a rate limit | measure in detect-only, then enforce | `references/troubleshooting.md` (rate limiting) |
 
 3. **Write config and rules to files, then check them.** Edit `waf.yaml` minimally and run `--validate` (it prints `config valid`; ignore the `WARN data_dir does not exist` line outside the container). `--validate` misses things that only fail at startup, so after a restart confirm in the logs that `barbacana started` appears and in metrics that your routes exist. Run `promtool check rules` on alert files if `promtool` is installed; if not, say it was not run.
 4. **Prove the signal.** An alert or dashboard that was never fired is a guess. With the user's agreement and only against dev or staging, send one harmless attack probe (`?q=%27%20OR%201%3D1--`, expect 403) and confirm `waf_requests_blocked_total` rose and an audit event appeared. Never send probes, load or restart commands at production without a clear yes.
-5. **Report** what you found or set up, what you verified, what you could not, and any follow-up (for example "reload edits need a restart").
+5. **Report** what you found or set up, what you verified, what you could not, and any follow-up (for example "the port change needs a restart").
 
 ## Troubleshooting order
 
@@ -76,3 +76,11 @@ Work from the outside in and stop at the first fault found:
 ## Next step
 
 A legitimate request is blocked: `barbacana-waf-tune`. A route, limit, header or rate-limit change: `barbacana-waf-configure`. Install, TLS, ports or upgrades: `barbacana-waf-install`.
+
+## Found a problem?
+
+Say where it belongs instead of working around it silently, and open an issue only if the user agrees. Remove hostnames, IPs, tokens and log contents from anything you post.
+
+- Barbacana misbehaves (crash, wrong result, config that validates but fails to start): <https://github.com/barbacana-waf/barbacana/issues>
+- The documentation is wrong or missing: <https://github.com/barbacana-waf/barbacana-docs/issues>
+- This skill is wrong, unclear or missing a case: <https://github.com/barbacana-waf/skills/issues>

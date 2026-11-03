@@ -82,9 +82,9 @@
     },
     {
       "id": 2,
-      "name": "sighup-did-not-apply",
-      "prompt": "I moved the /search route in waf.yaml (this directory) from detect_only back to blocking, ran kill -HUP on Barbacana, and the log says 'config reloaded' and waf_config_reload_total went up. But an SQL injection probe on /search still gets 200. Is the WAF broken? What should I do?",
-      "expected_output": "Explains that in v0.9.7 SIGHUP does not apply route-level mode edits (Caddy reports config is unchanged) despite the success log and counter, that waf_mode_info is misleading, and tells them to restart and then verify with the probe. Edits the file to blocking.",
+      "name": "startup-only-port-ignored-by-sighup",
+      "prompt": "I changed metrics_port from 9090 to 9100 in waf.yaml (this directory), ran kill -HUP on Barbacana, and the log says 'config reloaded' and waf_config_reload_total went up. But Prometheus gets nothing from port 9100, and 9090 still answers. Is the WAF broken? What should I do?",
+      "expected_output": "Explains that ports are read only at startup, so SIGHUP does not apply the change despite the success log and counter; tells them to restart and then check the new port. Keeps the 9100 edit.",
       "files": [
         "files/2"
       ],
@@ -97,25 +97,25 @@
           }
         },
         {
-          "text": "detect_only removed from the config",
+          "text": "The port edit is kept",
           "check": {
-            "type": "file_not_contains",
+            "type": "file_contains",
             "glob": "**/waf*.y*ml",
-            "regex": "mode:\\s*detect_only"
+            "regex": "metrics_port:\\s*9100"
           }
         },
         {
-          "text": "Tells the user to restart instead of reloading",
+          "text": "Tells the user to restart",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|recreate"
           }
         },
         {
-          "text": "Explains SIGHUP did not apply the edit",
+          "text": "Explains ports are startup-only or SIGHUP does not apply them",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)(not|n.t|does not|doesn.t)[^.\\n]{0,80}(appl|pick|take|re-?read)|config is unchanged|unchanged"
+            "regex": "(?i)(startup|start-up|at start|only (read|applied)|not (re-?read|applied|picked up|reloaded))|(needs?|requires?) (a )?restart"
           }
         },
         {
@@ -126,10 +126,10 @@
           }
         },
         {
-          "text": "Verifies by probing for 403",
+          "text": "Verifies by querying the new port",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)403|probe|OR(%20|\\+| )1(%3D|=)1"
+            "regex": "(?i)9100/metrics|curl[^\\n]{0,80}9100|:9100"
           }
         },
         {
@@ -353,14 +353,14 @@
           "text": "Mentions per-replica counting",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)(replica|instance|pod)[^.\\n]{0,120}(separate|independent|each|own|N ?[x\u00d7])|(separate|independent|each|own)[^.\\n]{0,80}(replica|instance)"
+            "regex": "(?i)(replica|instance|pod)[^.\\n]{0,120}(separate|independent|each|own|N ?[x×])|(separate|independent|each|own)[^.\\n]{0,80}(replica|instance)"
           }
         },
         {
-          "text": "Mentions restart",
+          "text": "Says how to apply the change (reload or restart)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|sighup|\\bHUP\\b|reload"
           }
         },
         {

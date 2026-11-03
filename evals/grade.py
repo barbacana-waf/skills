@@ -32,8 +32,43 @@ def read(path):
         return f.read()
 
 
-def check(c, workdir, response):
+def tool_calls(run_dir):
+    """(name, input-as-json-text) for every tool_use in transcript.jsonl, in order."""
+    p = os.path.join(run_dir, "transcript.jsonl")
+    calls = []
+    if not os.path.exists(p):
+        return calls
+    for line in open(p, errors="replace"):
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("type") != "assistant":
+            continue
+        for blk in ev.get("message", {}).get("content", []):
+            if isinstance(blk, dict) and blk.get("type") == "tool_use":
+                calls.append((blk.get("name", ""), json.dumps(blk.get("input", {}))))
+    return calls
+
+
+def first_call(calls, spec):
+    """Index of the first call matching {tool, regex?}, or None."""
+    for i, (name, inp) in enumerate(calls):
+        if re.fullmatch(spec["tool"], name) and (not spec.get("regex") or re.search(spec["regex"], inp)):
+            return i
+    return None
+
+
+def check(c, workdir, response, calls=()):
     t = c["type"]
+    if t in ("tool_called", "tool_not_called"):
+        i = first_call(calls, c)
+        ok = (i is not None) == (t == "tool_called")
+        return ok, f"{c['tool']}" + (f" /{c['regex']}/" if c.get("regex") else "") + (f" first at call {i}" if i is not None else " never called") + f" ({len(calls)} calls)"
+    if t == "tool_order":  # `before` must happen, and before `after` (or `after` never happens)
+        b, a = first_call(calls, c["before"]), first_call(calls, c["after"])
+        ok = b is not None and (a is None or b < a)
+        return ok, f"before at {b}, after at {a} ({len(calls)} calls)"
     if t in ("output_contains", "output_not_contains"):
         m = re.search(c["regex"], response)
         ok = bool(m) == (t == "output_contains")
@@ -55,9 +90,9 @@ def check(c, workdir, response):
         return True, f"/{c['regex']}/ absent from {len(fs)} file(s) matching {c['glob']}"
     if t == "validate_config":
         binary = os.environ.get("BARBACANA_BIN", "barbacana")
-        cfgs = [f for f in fs if "version: v1alpha1" in read(f)]
+        cfgs = [f for f in fs if re.search(r"^version:\s*v1(alpha1|beta1)\b", read(f), re.M)]
         if not cfgs:
-            return False, f"no Barbacana config (version: v1alpha1) among files matching {c['glob']}"
+            return False, f"no Barbacana config (version: v1alpha1 or v1beta1) among files matching {c['glob']}"
         notes = []
         for f in cfgs:
             p = subprocess.run([binary, "--config", f, "--validate"], capture_output=True, text=True)
@@ -75,9 +110,10 @@ def main():
     workdir = os.path.join(run_dir, "workdir")
     rp = os.path.join(run_dir, "response.md")
     response = read(rp) if os.path.exists(rp) else ""
+    calls = tool_calls(run_dir)
     results = []
     for a in spec["assertions"]:
-        ok, evidence = check(a["check"], workdir, response)
+        ok, evidence = check(a["check"], workdir, response, calls)
         results.append({"text": a["text"], "passed": ok, "evidence": evidence})
     passed = sum(r["passed"] for r in results)
     json.dump({"expectations": results, "summary": {"passed": passed, "total": len(results)}},

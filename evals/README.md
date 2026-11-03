@@ -19,7 +19,7 @@ For every eval, twice (**with_skill** and **without_skill**, the baseline):
 
 1. Creates a fresh working dir, copies `files/<id>/` into it.
 2. With the skill: copies the skill in as `.claude/skills/<skill>/`, exactly what an install contains, so the agent never sees the assertions.
-3. Runs `claude -p` headless with the eval prompt. Both arms get the same sandbox note (no Docker, cluster or services; write files, describe commands), the same read/write tools, and only `barbacana` and `gh release list` as shell commands. `--setting-sources project` keeps your personal skills out of the run.
+3. Runs the agent headless with the eval prompt (`claude -p` by default, or OpenCode with `--agent opencode`). Both arms get the same sandbox note (no Docker, cluster or services; write files, describe commands), the same read/write tools, and only `barbacana` and `gh release list` as shell commands. `--setting-sources project` keeps your personal skills out of the Claude run; for OpenCode, a permission config denies every skill except the one under test (and all of them in the baseline arm).
 4. Grades the files and the final answer with `grade.py` and prints a with/without table.
 
 ## Run it
@@ -28,12 +28,15 @@ For every eval, twice (**with_skill** and **without_skill**, the baseline):
 # a barbacana binary for the validate_config assertions (release archive, or `make build` in barbacana-waf/barbacana)
 export BARBACANA_BIN=/path/to/barbacana
 
-evals/run.sh --dry-run                          # show what would run, no API calls
-evals/run.sh --skill barbacana-waf-install          # all evals, both arms
-evals/run.sh --skill barbacana-waf-install --eval 4 --only with --iteration 2 --model <model-id>
+evals/run-evals.sh --dry-run                          # show what would run, no API calls
+evals/run-evals.sh --skill barbacana-waf-install          # all evals, both arms
+evals/run-evals.sh --skill barbacana-waf-install --eval 4 --only with --iteration 2 --model <model-id>
+
+# the same evals through OpenCode (model as `opencode models` lists it)
+evals/run-evals.sh --agent opencode --model opencode-go/<model> --skill barbacana-waf-install
 ```
 
-Flags: `--budget USD` caps each run (default 1.50). Results land in `evals/workspace/iteration-N/<skill>/eval-<id>/<arm>/`: `workdir/` (what the agent wrote), `response.md`, `transcript.json`, `timing.json`, `grading.json` (`text` / `passed` / `evidence` per assertion, the shape `skill-creator`'s viewer expects). Use a new `--iteration` number after each skill change and compare tables.
+Flags: `--agent claude|opencode` (default `claude`); `--budget USD` caps each Claude run (default 1.50; not used by OpenCode). OpenCode is found via `OPENCODE_BIN`, then `PATH`, then the desktop app's bundled `opencode-cli`. For OpenCode runs the raw event stream is kept as `transcript.opencode.jsonl` and converted into the same Claude-style `transcript.jsonl`, so the `tool_called` assertions work for both. Results land in `evals/workspace/iteration-N/<skill>/eval-<id>/<arm>/`: `workdir/` (what the agent wrote), `response.md`, `transcript.jsonl` (stream-json, one event per line), `timing.json`, `grading.json` (`text` / `passed` / `evidence` per assertion, the shape `skill-creator`'s viewer expects). Use a new `--iteration` number after each skill change and compare tables.
 
 Real runs call the API and cost money: expect on the order of a dollar per run.
 
@@ -52,7 +55,9 @@ Grades a known-good and a known-bad run for eval 1 and fails if the good one mis
 | `file_exists` | at least one file matches `glob` |
 | `file_contains` | `regex` matches in any file matching `glob` |
 | `file_not_contains` | files match `glob` and none contains `regex` (no files = fail, so empty runs do not score) |
-| `validate_config` | every matching file with `version: v1alpha1` passes `barbacana --validate`, and there is at least one |
+| `validate_config` | every matching file with `version: v1beta1` (or the deprecated `v1alpha1`) passes `barbacana --validate`, and there is at least one |
+| `tool_called` / `tool_not_called` | the transcript has (no) call to tool `tool` (regex, full match, e.g. `Skill|Read`) whose input matches optional `regex` |
+| `tool_order` | `before` `{tool, regex?}` happens, and earlier than `after` (or `after` never happens). Use it for rules like "query the graph before grepping" |
 | `output_contains` / `output_not_contains` | `regex` does / does not match the final answer |
 
 ## Adding an eval
@@ -61,7 +66,26 @@ Add an entry to the skill's `evals.json` with a realistic prompt and 4-10 assert
 
 ## Known limits
 
-- Assertions check outcomes, not the path taken. A pass does not prove the agent followed the skill's steps; read a few `transcript.json` files.
+- Assertions check outcomes, not the path taken. A pass does not prove the agent followed the skill's steps; read a few `transcript.jsonl` files, or add the `tool_*` assertions below.
 - The Kubernetes Service check is a regex over the manifest, not a parsed object model.
-- Trigger quality (does the description fire on the right prompts) is a separate test, not covered here. Use `skill-creator`'s description optimizer with near-miss negatives.
+- Trigger quality is tested separately, see below.
 - One sample per eval is noisy. Repeat important comparisons with several iterations.
+
+## Cheap-model sweeps
+
+```bash
+evals/sweep.sh --models haiku,sonnet --repeats 3 --skill barbacana-waf-install
+```
+
+One iteration per (model, repeat), mapped in `evals/workspace/sweep-<base>.tsv`. Compare pass rates, not single runs. Failing on every model points at the skill; failing only on the weakest points at ambiguity worth clarifying. For non-Anthropic models, set `ANTHROPIC_BASE_URL` to an Anthropic-compatible gateway (LiteLLM, OpenRouter).
+
+## Trigger tests
+
+`evals/skills/<skill>/triggers.json` lists prompts with `should_trigger` true/false (include near-misses that belong to a sibling skill). `triggers.py` installs all skills together, runs each prompt with the Skill and Read tools only, and counts a hit when the skill is called or its SKILL.md read:
+
+```bash
+evals/triggers.py --dry-run                    # list queries
+evals/triggers.py --model haiku --repeats 3    # all skills
+```
+
+`flaky` means it fired on some repeats only: the description is borderline.

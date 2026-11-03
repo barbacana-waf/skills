@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 # Mode 1: Barbacana terminates TLS itself and gets a Let's Encrypt
 # certificate. Needs ports 80 and 443 reachable from the internet and
 # DNS for the host pointing at this machine.

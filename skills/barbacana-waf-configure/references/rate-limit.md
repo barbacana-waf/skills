@@ -1,6 +1,6 @@
 # Rate limiting
 
-Off by default. Add a `rate_limit:` block to a route or to `global:`. Verified on v0.9.7.
+Off by default. Add a `rate_limit:` block to a route or to `global:`. Verified on v0.9.7 and v0.10.0.
 
 ```yaml
 rate_limit:

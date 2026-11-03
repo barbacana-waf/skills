@@ -1,10 +1,10 @@
 # Reading the audit log
 
-Barbacana writes one JSON document per request to stdout, always on. The format is `ocsf` (default) or `ecs`, set by `audit_log.format`. Find it with `docker compose logs barbacana`, `kubectl -n <ns> logs deploy/barbacana`, or `journalctl -u barbacana -o cat`. Lines that are not audit events (startup, reload) are ordinary slog lines; ignore them.
+Barbacana writes one JSON document to stdout for each request that matched a protection (blocked or, in detect-only, detected); clean requests are counted in metrics but not logged, so a missing event means the request matched nothing. The format is `ocsf` (default) or `ecs`, set by `audit_log.format`. Find it with `docker compose logs barbacana`, `kubectl -n <ns> logs deploy/barbacana`, or `journalctl -u barbacana -o cat`. Lines that are not audit events (startup, reload) are ordinary slog lines; ignore them.
 
 `scripts/find-event.sh <request_id>` extracts the fields below from either format.
 
-## Fields that matter (verified on v0.9.7)
+## Fields that matter (verified on v0.9.7; OCSF fields re-checked on v0.10.0)
 
 | What | OCSF | ECS | Both |
 |---|---|---|---|

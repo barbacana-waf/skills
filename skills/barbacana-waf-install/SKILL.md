@@ -25,12 +25,13 @@ Propose each step and its exact commands, then run them once the user confirms. 
    - TLS: does Barbacana serve HTTPS itself (needs a public hostname, ports 80/443 open, DNS pointing here) or sit behind a load balancer/ingress that terminates TLS? Read `references/tls-modes.md`.
    - is this production? If so, pin the version, enable health and metrics ports, and offer signature verification.
 2. **Pin a version.** Get the latest release (`gh release list -R barbacana-waf/barbacana --limit 1`, or the GitHub releases page) and use that tag. Do not use `:latest` outside throwaway tests, because it makes upgrades and rollbacks irreproducible.
-3. **Write the config** from `assets/waf-http.yaml` (behind a load balancer) or `assets/waf-autotls.yaml` (auto-TLS). Keep it minimal: every protection is already on. Do not add `disable` entries during install.
-4. **Validate before running.** `barbacana --config waf.yaml --validate` must print `config valid`. In a container: mount the file and run the image with `--config /etc/barbacana/waf.yaml --validate`. Fix errors using the message; they name the field.
-5. **Write target files and start.** Follow the reference for the chosen target: `references/compose.md`, `references/kubernetes.md`, or `references/binary-systemd.md`.
-6. **Smoke test.** See below. Report each result with its HTTP status.
-7. **Offer verification** for production (`references/verify-and-upgrade.md`).
-8. **Hand off.** Tell the user what is running, which ports are exposed, and which are internal-only.
+3. **Write the config** from `assets/waf-http.yaml` (behind a load balancer) or `assets/waf-autotls.yaml` (auto-TLS). The assets say `version: v1beta1`; v0.9.7 and older accept only `v1alpha1` (newer releases still accept it, deprecated), so if `--validate` rejects the version, change the first line. Keep it minimal: every protection is already on. Do not add `disable` entries during install.
+4. **If the user names a CVE or attack, check what is covered.** Run `barbacana --catalog` (and `--catalog-leaf <id>` for a likely match) and report which protections apply and which parts of the attack they do not stop; say so plainly when nothing in this version's catalog is specific to it. Then say that a WAF mitigates but does not fix: the vulnerable application or runtime still has to be patched or upgraded, and an end-of-life version may have no fix at all. Take fixed version numbers from the advisory, not from memory. Never disable a protection to fit the request.
+5. **Validate before running.** `barbacana --config waf.yaml --validate` must print `config valid`. In a container: mount the file and run the image with `--config /etc/barbacana/waf.yaml --validate`. Fix errors using the message; they name the field.
+6. **Write target files and start.** Follow the reference for the chosen target: `references/compose.md`, `references/kubernetes.md`, or `references/binary-systemd.md`.
+7. **Smoke test.** See below. Report each result with its HTTP status.
+8. **Offer verification** for production (`references/verify-and-upgrade.md`).
+9. **Hand off.** Tell the user what is running, which ports are exposed, and which are internal-only.
 
 ## Smoke test
 
@@ -64,3 +65,11 @@ The second request is a harmless classic SQL-injection probe; a 403 proves the W
 ## Next step
 
 Once the smoke test passes, use `barbacana-waf-configure` to add routes, headers, uploads and limits. If a legitimate request is blocked, use `barbacana-waf-tune`. To monitor the instance, use `barbacana-waf-operate`.
+
+## Found a problem?
+
+Say where it belongs instead of working around it silently, and open an issue only if the user agrees. Remove hostnames, IPs, tokens and log contents from anything you post.
+
+- Barbacana misbehaves (crash, wrong result, config that validates but fails to start): <https://github.com/barbacana-waf/barbacana/issues>
+- The documentation is wrong or missing: <https://github.com/barbacana-waf/barbacana-docs/issues>
+- This skill is wrong, unclear or missing a case: <https://github.com/barbacana-waf/skills/issues>

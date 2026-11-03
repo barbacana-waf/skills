@@ -1,4 +1,4 @@
-# Troubleshooting (v0.9.7)
+# Troubleshooting (v0.10.0)
 
 Read-only checks first. Commands assume you run them where the internal ports are reachable (`kubectl port-forward`, `docker compose exec`, or the host).
 
@@ -14,7 +14,7 @@ Read-only checks first. Commands assume you run them where the internal ports ar
 | **429** with `Retry-After` | Rate limiter (`rate_limit:`) | see "Rate limiting" below |
 | **405** or odd 4xx/5xx on specific methods | `accept.methods` narrowed (OPTIONS dropped breaks CORS preflight) | hand off to `barbacana-waf-configure` |
 | Empty 200 for some paths | No route matched (unmatched paths return an empty 200, not 404) | check route order and `match.paths`; configure |
-| Config edit "did nothing" after SIGHUP | SIGHUP does not apply most edits | `reload.md`; restart |
+| Config edit "did nothing" after SIGHUP | a startup-only setting (ports, tracing, audit format), or v0.9.7 or older, where SIGHUP applied almost nothing | `reload.md`; restart |
 | `up == 0` but traffic is fine | Metrics port blocked, wrong target, or `metrics_port` unset | `curl http://<host>:<metrics_port>/metrics` from the scraper's network |
 | No `waf_*` series for a route | No traffic yet (series appear on first use) or route id differs from the one in the query | list `waf_mode_info` for the real route ids |
 | Latency up | WAF overhead vs upstream | `histogram_quantile(0.95, sum by (le)(rate(waf_request_duration_overhead_seconds_bucket[5m])))` against `caddy_http_request_duration_seconds`; if overhead is small the upstream is slow. Also `waf_evaluation_timeout_total`, `waf_body_spooled_total`. |
@@ -40,6 +40,6 @@ curl -s http://HOST:METRICS/metrics | grep -E '^waf_(build_info|mode_info)'
 ## Rate limiting
 
 - **Spotting it**: 429 responses with `Retry-After`; audit events with `matched_protections: ["rate-limit"]`; `waf_requests_blocked_total{protection="rate-limit"}`. There is no separate rate-limit metric.
-- **Measuring a candidate rate**: set the route to `detect_only` with the proposed `rate_limit`, restart (a SIGHUP will not apply it), let normal traffic run, then count `waf_requests_total{action="detected"}` / `waf_detected_threats_total{protection="rate-limit"}` per route and look at the audit events' clients. If real users appear, the limit is too low. Then switch the route back to blocking and restart. Detect-only also disables blocking of every other protection on that route: keep it short, prefer staging. Writing the `rate_limit` block is `barbacana-waf-configure`'s job.
+- **Measuring a candidate rate**: set the route to `detect_only` with the proposed `rate_limit`, reload or restart, let normal traffic run, then count `waf_requests_total{action="detected"}` / `waf_detected_threats_total{protection="rate-limit"}` per route and look at the audit events' clients. If real users appear, the limit is too low. Then switch the route back to blocking and restart. Detect-only also disables blocking of every other protection on that route: keep it short, prefer staging. Writing the `rate_limit` block is `barbacana-waf-configure`'s job.
 - **Caveats to tell the user**: counters live in process memory, so they reset on every restart; each replica counts separately (N replicas allow up to N times the rate); `source: ip` is the connection's address, which is the load balancer behind one, in which case everyone shares one bucket (use `source: header` with a header the proxy sets and sanitises); a client that controls the header can dodge the limit; it is not a hard quota.
 - **Everyone is getting 429**: almost always `ip` source behind a proxy, or a `global` limit inherited by routes that should not have it (a route with its own block replaces the global one; no per-route opt-out exists).

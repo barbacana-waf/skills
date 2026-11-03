@@ -18,7 +18,7 @@ Find which protection blocked a legitimate request, relax the narrowest thing th
 ## Workflow
 
 1. **Confirm Barbacana blocked it.** A Barbacana block returns 403 with body `{"error":"blocked","request_id":"..."}`. A 403 without that body comes from the app or another proxy; stop and say so. Get the `request_id` from the user, or reproduce the request with `curl` (ask before sending requests to anything but a dev or staging URL).
-2. **Find the audit event.** One JSON line per request goes to stdout (`docker compose logs`, `kubectl logs`, `journalctl -u barbacana`). Run `scripts/find-event.sh <request_id>` on that output, or follow `references/audit-log.md`. Read `matched_protections` and the route. A request can match several protections; handle every one listed.
+2. **Find the audit event.** One JSON line per blocked or detected request goes to stdout (`docker compose logs`, `kubectl logs`, `journalctl -u barbacana`). Run `scripts/find-event.sh <request_id>` on that output, or follow `references/audit-log.md`. Read `matched_protections` and the route. A request can match several protections; handle every one listed.
 3. **Judge the request before touching config.** Ask: is this input legitimate? Run `barbacana --catalog-leaf <name>` for each matched protection and compare "What it does" with the actual request. If the request contains something that looks like a real attack (SQL, script tags or shell commands that the user's feature would never send), do not disable anything: explain what the protection saw and ask for a legitimate sample. A user's annoyance with 403s is not evidence of a false positive.
 4. **Pick the narrowest fix**, in this order (details in `references/scoping-and-precedence.md`):
    1. Fix the sender if it is easy (for example, stop sending a raw SQL snippet in a free-text field).
@@ -27,7 +27,7 @@ Find which protection blocked a legitimate request, relax the narrowest thing th
    4. A global leaf-level `disable` only when the same false positive appears on every route.
    5. Never a bucket or family (`sql-injection`, `sql`) unless the user explicitly accepts losing everything in it, after you list the leaves it covers.
 5. **Need data first? Use detect-only, briefly.** When there are many unknown false positives, set `mode: detect_only` on **one** route, collect events (a 200 with a non-empty `matched_protections` is a would-have-been block), derive the leaf list, then return the route to blocking. Detect-only lets attacks through on that route, so keep it short, say that plainly, and prefer staging. Do not set it globally to make 403s go away.
-6. **Apply and restart.** Edit `waf.yaml`, add a comment above the change saying why and what it gives up, run `--validate`, then **restart** Barbacana. Do not rely on a SIGHUP reload: in v0.9.7 it reports "config is unchanged" and does not apply route-level `mode` or `disable` edits. Compose: `docker compose restart barbacana`; Kubernetes: `kubectl rollout restart deployment/barbacana` (a changed ConfigMap needs it); systemd: `systemctl restart barbacana`.
+6. **Apply.** Edit `waf.yaml`, add a comment above the change saying why and what it gives up, run `--validate`, then apply it. From v0.10.0 a SIGHUP reload (`kill -HUP`, `docker kill -s HUP`) applies `mode` and `disable` edits and keeps the old config if the new one is invalid; on v0.9.7 or older it silently applied neither, so restart. Either way, prove the change by re-sending the blocked request. To restart: Compose: `docker compose restart barbacana`; Kubernetes: `kubectl rollout restart deployment/barbacana` (a changed ConfigMap needs it); systemd: `systemctl restart barbacana`.
 7. **Verify both directions.**
    - The original request now succeeds.
    - A harmless probe on the same route still gets a 403: `?q=%27%20OR%201%3D1--`. If it now passes, the change is too broad; narrow it.
@@ -47,3 +47,11 @@ Find which protection blocked a legitimate request, relax the narrowest thing th
 ## Next step
 
 For size limits, content types, uploads, CORS or new routes use `barbacana-waf-configure`. To watch blocked and detected counts over time use `barbacana-waf-operate`.
+
+## Found a problem?
+
+Say where it belongs instead of working around it silently, and open an issue only if the user agrees. Remove hostnames, IPs, tokens and log contents from anything you post.
+
+- Barbacana misbehaves (crash, wrong result, config that validates but fails to start): <https://github.com/barbacana-waf/barbacana/issues>
+- The documentation is wrong or missing: <https://github.com/barbacana-waf/barbacana-docs/issues>
+- This skill is wrong, unclear or missing a case: <https://github.com/barbacana-waf/skills/issues>

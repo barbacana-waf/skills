@@ -13,7 +13,7 @@ Named `barbacana-waf-*` so the product category is visible in the skills.sh list
 | [`barbacana-waf-tune`](skills/barbacana-waf-tune) | Find which protection blocked a legitimate request from the audit log and relax the narrowest thing that fixes it, never a whole family | Ready (v0.1) |
 | [`barbacana-waf-operate`](skills/barbacana-waf-operate) | Metrics, alert rules, Grafana, audit logs and SIEM, tracing, config reloads, troubleshooting a failing instance | Ready (v0.1) |
 
-Planned skills are hidden from install (`metadata.internal: true`) until they are finished.
+Written and verified against Barbacana v0.10.x (configs use `version: v1beta1`; v0.9.7 and earlier only accept `v1alpha1`).
 
 ## Install
 
@@ -61,12 +61,12 @@ docs/PUBLISHING.md  # publishing to skills.sh and releasing updates
 ```bash
 scripts/lint-skills.sh                              # frontmatter and size checks
 BARBACANA_BIN=/path/to/barbacana evals/selftest.sh  # grader self-test, no API calls
-evals/run.sh --skill barbacana-waf-install --dry-run    # see what an eval run would do
+evals/run-evals.sh --skill barbacana-waf-install --dry-run    # see what an eval run would do
 ```
 
 How the evals work, their limits, and how to add one: [evals/README.md](evals/README.md). To add a skill, copy `template/`, keep sample configs valid, add evals, and follow the checklist in [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
-First eval results for `barbacana-waf-install` (8 subagent runs, one sample each): 29/29 assertions with the skill, 21/29 without. The differences were on Kubernetes metrics exposure and refusing to disable a whole protection family at install time. Treat this as a first read, not a benchmark.
+Eval results (all four skills, 25 evals, one sample each, `opencode-go/deepseek-v4.1-flash`, no web access, Barbacana v0.10.0): 195/201 assertions with the skills, 146/201 without. The biggest gaps are in install (e.g. eval 8, PHP2Shell: 12/12 vs 4/12) and configure. Treat this as a first read, not a benchmark.
 
 ## License
 

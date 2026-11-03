@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 # Barbacana runs as 3 replicas behind a cloud load balancer that terminates TLS
 # and adds X-Forwarded-For.
 port: 8080

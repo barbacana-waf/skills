@@ -1,4 +1,4 @@
-# Prometheus alerting rules for Barbacana v0.9.x. Replace job="barbacana" with your
+# Prometheus alerting rules for Barbacana v0.10.x. Replace job="barbacana" with your
 # scrape job (barbacana-k8s for the Kubernetes job) and review the thresholds.
 groups:
   - name: barbacana
@@ -20,6 +20,14 @@ groups:
         annotations:
           summary: "Route {{ $labels.route }}: over 5% of requests fail at the upstream"
           description: "The app behind Barbacana is refusing, timing out or returning 5xx. See waf_upstream_errors_total by kind. The health probes stay green in this case."
+
+      - alert: BarbacanaBodyInspectionSkipped
+        expr: sum by (route) (increase(waf_body_inspection_skipped_total[10m])) > 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Route {{ $labels.route }}: requests are being forwarded without body inspection"
+          description: "The body could not be buffered, so no body rule ran on these requests (fail-open). Expected to stay at zero. Needs Barbacana v0.10.0 or newer; on older releases the metric does not exist and this never fires."
 
       - alert: BarbacanaBlockRatioHigh
         expr: |

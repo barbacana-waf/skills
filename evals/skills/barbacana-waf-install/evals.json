@@ -85,6 +85,14 @@
             "type": "output_contains",
             "regex": "403|(?i:blocked)"
           }
+        },
+        {
+          "text": "Loads the install skill (Skill tool or reads its SKILL.md)",
+          "check": {
+            "type": "tool_called",
+            "tool": "Skill|Read",
+            "regex": "barbacana-waf-install"
+          }
         }
       ]
     },
@@ -417,6 +425,105 @@
             "type": "file_contains",
             "glob": "**/*.service",
             "regex": "ExecStartPre=.*--validate"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "php2shell-legacy-php",
+      "prompt": "protect my legacy PHP app from PHP2Shell",
+      "expected_output": "Puts Barbacana in front of the nginx service with every protection left on and the app no longer published directly; looks at the catalog to say what Barbacana covers for this attack; says plainly that a WAF is a mitigation and PHP itself must be upgraded (7.4 has no fix); does not claim full protection.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Writes a Barbacana config",
+          "check": {
+            "type": "file_exists",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Config passes barbacana --validate",
+          "check": {
+            "type": "validate_config",
+            "glob": "**/waf*.y*ml"
+          }
+        },
+        {
+          "text": "Upstream is the nginx service, not php-fpm",
+          "check": {
+            "type": "file_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "upstream:\\s*http://web:80"
+          }
+        },
+        {
+          "text": "No disable entries written",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/waf*.y*ml",
+            "regex": "disable"
+          }
+        },
+        {
+          "text": "Barbacana image is pinned, not :latest",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "**/*.y*ml",
+            "regex": "barbacana:latest"
+          }
+        },
+        {
+          "text": "App no longer published on the host",
+          "check": {
+            "type": "file_not_contains",
+            "glob": "docker-compose.y*ml",
+            "regex": "(?<![0-9])80:80(?![0-9])"
+          }
+        },
+        {
+          "text": "Looks at the catalog instead of assuming what is covered",
+          "check": {
+            "type": "tool_called",
+            "tool": "Bash",
+            "regex": "--catalog"
+          }
+        },
+        {
+          "text": "Final answer reports what the catalog says about this attack",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)catalog"
+          }
+        },
+        {
+          "text": "Final answer says PHP must be upgraded or patched",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)(upgrad|patch)\\w*\\W+(\\w+\\W+){0,6}php|php\\W+(\\w+\\W+){0,6}(upgrad|patch)|8\\.2\\.35|8\\.3\\.36|8\\.4\\.27|8\\.5\\.12"
+          }
+        },
+        {
+          "text": "Final answer says the WAF is a mitigation, not a replacement for the patch",
+          "check": {
+            "type": "output_contains",
+            "regex": "(?i)mitigation|not a (substitute|replacement|fix)|does not (replace|fix|remove)|in addition|defen[cs]e.in.depth|compensating"
+          }
+        },
+        {
+          "text": "Does not claim complete protection",
+          "check": {
+            "type": "output_not_contains",
+            "regex": "(?i)fully protect|completely (protect|block|safe)|100%|immune|guarantee"
+          }
+        },
+        {
+          "text": "Loads the install skill (Skill tool or reads its SKILL.md)",
+          "check": {
+            "type": "tool_called",
+            "tool": "Skill|Read",
+            "regex": "barbacana-waf-install"
           }
         }
       ]

@@ -5,7 +5,7 @@ metadata:
   name: barbacana-config
 data:
   waf.yaml: |
-    version: v1alpha1
+    version: v1beta1
     port: 8080
     metrics_port: 9090
     health_port: 8081

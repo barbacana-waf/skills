@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 port: 8080
 routes:
   # Narrow route for the upload endpoint only; the rest of the app keeps the defaults.

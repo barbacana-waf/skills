@@ -14,13 +14,14 @@ accept:
   max_header_count: 100              # 10 to 1000
 ```
 
-Sizes take `B`, `KB`, `MB`, `GB` (powers of 1024). Observed statuses (v0.9.7):
+Sizes take `B`, `KB`, `MB`, `GB` (powers of 1024). Observed statuses (v0.10.0):
 
 | Condition | Status |
 |---|---|
 | method not in `methods` | 405 |
 | `Content-Type` not in `content_types` (on requests with a body) | 415 |
-| body over `max_body_size` | 413 |
+| body over `max_body_size` | 413 (`request-validation-max-body-size`; chunked bodies too, in every mode) |
+| non-file body over `inspection.max_inspect_size` (default 128KB) | 413 (`resource-limits-max-inspection-size`) |
 
 - `content_types` also selects which parsers inspect the body. `[application/json]` skips XML, form and multipart parsing, so tighten it wherever the endpoint takes one type only. Match the app's real types (`application/json`, `application/x-www-form-urlencoded`, `multipart/form-data`); do not add types "just in case".
 - Narrowing `methods` removes `OPTIONS` unless you list it, which breaks CORS preflight (405). Keep `OPTIONS` on any route with `cors`.
@@ -57,4 +58,4 @@ Bounds for body inspection. Raise only for a proven need (a big JSON API, a Grap
 | `decompression_ratio_limit` | 100 | >= 1 |
 | `evaluation_timeout` | 50ms | >= 10ms |
 
-Data larger than `max_inspect_size` is not fully evaluated. Say so when raising `max_body_size` on a route that takes JSON or forms rather than file parts.
+From v0.10.0 a body that is not a file part and is larger than `max_inspect_size` is rejected with 413, not partly evaluated; file contents in a multipart upload do not count against it. So a JSON or form endpoint that legitimately takes more than 128KB needs `inspection.max_inspect_size` raised on that route (up to 10MB) as well as `max_body_size`. Before v0.10.0 uploads over 128KB were blocked and oversize bodies were only partly evaluated.

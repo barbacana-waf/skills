@@ -58,10 +58,10 @@
           }
         },
         {
-          "text": "Tells the user to restart, not reload",
+          "text": "Tells the user how to apply the change (reload or restart)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|sighup|\\bHUP\\b|reload"
           }
         },
         {
@@ -190,10 +190,10 @@
           }
         },
         {
-          "text": "Tells the user to restart",
+          "text": "Tells the user how to apply the change (reload or restart)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|sighup|\\bHUP\\b|reload"
           }
         }
       ]

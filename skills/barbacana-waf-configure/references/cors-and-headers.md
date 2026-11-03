@@ -12,7 +12,7 @@ cors:
   max_age: 600                                 # seconds, 0 to 86400
 ```
 
-Verified on v0.9.7:
+Verified on v0.9.7 and v0.10.0:
 - Preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) from an allowed origin returns 204 with the `Access-Control-*` headers.
 - A request from another origin passes through without `Access-Control-Allow-Origin`; the browser, not Barbacana, blocks it.
 - If `accept.methods` is set without `OPTIONS`, preflight gets 405.

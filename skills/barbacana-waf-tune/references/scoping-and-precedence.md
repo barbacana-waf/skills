@@ -37,4 +37,4 @@ Some leaves ship off because they cause false positives or have no safe default 
 
 ## Changing mode
 
-`mode: detect_only` can be set globally or per route. Prefer one route, for a short time, and set it back. In v0.9.7 neither `mode` nor `disable` edits are picked up by a SIGHUP reload; restart the process.
+`mode: detect_only` can be set globally or per route. Prefer one route, for a short time, and set it back. From v0.10.0 a SIGHUP reload picks up `mode` and `disable` edits; in v0.9.7 and older neither is applied by SIGHUP, so restart the process.

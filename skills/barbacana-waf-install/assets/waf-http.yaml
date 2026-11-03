@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 # Mode 3: plain HTTP behind a TLS-terminating load balancer or ingress.
 port: 8080
 metrics_port: 9090   # internal network only

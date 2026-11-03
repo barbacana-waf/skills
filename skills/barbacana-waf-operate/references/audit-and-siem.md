@@ -1,4 +1,4 @@
-# Audit logs and SIEM (verified on v0.9.7)
+# Audit logs and SIEM (verified on v0.9.7; event fields re-checked on v0.10.0)
 
 Events are one JSON document per line on **stdout**, interleaved with ordinary operational lines (Barbacana's slog lines and Caddy's lines, which have `level`). Pick events by their shape, not by line position. Format: `audit_log.format: ocsf` (default) or `ecs`, read **once at startup** (a SIGHUP does not change it).
 

@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 # Plain HTTP behind a load balancer or ingress. Keep health and metrics on an
 # internal network only.
 port: 8080

@@ -1,6 +1,6 @@
 # Typical causes
 
-Starting points only. The audit log decides; confirm every name with `barbacana --catalog-leaf`. Examples below come from the v0.9.7 catalog's "when to toggle" text.
+Starting points only. The audit log decides; confirm every name with `barbacana --catalog-leaf`. Examples below come from the v0.9.7 catalog's "when to toggle" text; leaf names can change between releases, so re-check each with `--catalog-leaf`.
 
 | App feature | Looks like | Often matched | Better first move |
 |---|---|---|---|

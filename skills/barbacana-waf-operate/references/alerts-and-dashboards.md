@@ -13,11 +13,12 @@
 | `BarbacanaDown` | scrape target `up == 0` for 2m | the metrics listener is gone or unreachable; also check the process |
 | `BarbacanaUpstreamErrors` | more than 5% of a route's requests fail upstream for 5m | the main "is the app down" signal; the health probes will not show it |
 | `BarbacanaBlockRatioHigh` | over 30% of a route's requests blocked for 10m, with real traffic | an attack, or a new false positive after a deploy; look at the audit log |
+| `BarbacanaBodyInspectionSkipped` | any request forwarded without body inspection for 10m | fail-open: a body that could not be buffered skips every body rule; v0.10.0+ only |
 | `BarbacanaRouteDetectOnly` | any route in `detect_only` for 1h | detect-only lets attacks through; make sure it is temporary |
 | `BarbacanaEvaluationTimeouts` | any CRS evaluation timeout in 10m | slow or oversized inspection |
 | `BarbacanaInFlightHigh` | over 500 requests in the pipeline for 5m | capacity; align with the dashboard's `inflight_crit` |
 | `BarbacanaOverheadHigh` | WAF overhead p95 over 100ms for 10m | check body sizes and `inspection` settings |
-| `BarbacanaReloadRejected` | `caddy_config_last_reload_successful == 0` for 5m | a SIGHUP was refused after parsing; restart with a fixed config |
+| `BarbacanaReloadRejected` | `caddy_config_last_reload_successful == 0` for 5m | a SIGHUP was refused after parsing; fix the config and reload again |
 | `BarbacanaRestarted` | process start time changed | informational |
 
 Deliberately **not** included: alerts on `waf_config_reload_total{result="success"}` or `waf_mode_info` as proof of a reload (see `metrics.md`), `caddy_reverse_proxy_upstreams_healthy` (always 1), and a "no traffic" alert (depends on the site; add one if the service has constant traffic: `sum(rate(waf_requests_total[10m])) == 0`).

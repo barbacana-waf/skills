@@ -24,7 +24,7 @@ Switching modes is an install/TLS decision, not a route edit: use `barbacana-waf
 
 Give every route an explicit `id`; the generated one is derived from the first path and is unstable if the path changes. The `id` is also how `barbacana-waf-tune` and the audit log refer to the route.
 
-## Order matters (verified on v0.9.7)
+## Order matters (verified on v0.9.7 and v0.10.0)
 
 Routes are evaluated in file order and the first match wins. The schema doc promises "most specific wins", but v0.9.7 does not sort routes. Observed: a catch-all listed first received `/api/` traffic meant for a later `/api/*` route.
 
@@ -36,7 +36,7 @@ Rules:
 ## Path patterns
 
 - `/api/*` matches `/api/anything` and `/api/a/b/c` (any depth after the slash). It does **not** match `/api`. Write `paths: ["/api", "/api/*"]` when the bare path is valid.
-- `**` does not work in v0.9.7 (`/x/**` did not match `/x/a/b/c`). Use a single trailing `/*`.
+- `**` does not work (v0.9.7 and v0.10.0; `/x/**` did not match `/x/a/b/c`). Use a single trailing `/*`.
 - Exact path: no wildcard (`/healthz-app`).
 - A route with several `paths` shares one upstream and one set of settings.
 

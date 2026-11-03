@@ -5,7 +5,7 @@
       "id": 1,
       "name": "add-api-route-before-catchall",
       "prompt": "Our orders service runs at orders:8000 and takes JSON only. Add a route so /orders and everything under /orders/ goes to it, and the service sees paths without the /orders prefix. Bodies should not be larger than 1MB. waf.yaml is in this directory.",
-      "expected_output": "New route with its own id, strip_prefix, json-only, 1MB, placed above the existing catch-all (routes are first-match in file order in v0.9.7), validates, restart mentioned.",
+      "expected_output": "New route with its own id, strip_prefix, json-only, 1MB, placed above the existing catch-all (routes are first-match in file order), validates, how to apply (reload or restart) mentioned.",
       "files": [
         "files/1"
       ],
@@ -82,10 +82,10 @@
           }
         },
         {
-          "text": "Tells the user to restart or roll out, not reload",
+          "text": "Tells the user how to apply the change (reload or restart)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|sighup|\\bHUP\\b|reload"
           }
         }
       ]
@@ -339,10 +339,10 @@
           }
         },
         {
-          "text": "Tells the user to restart or roll out, not reload",
+          "text": "Tells the user how to apply the change (reload or restart)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|sighup|\\bHUP\\b|reload"
           }
         }
       ]
@@ -351,7 +351,7 @@
       "id": 5,
       "name": "routes-d-not-loaded",
       "prompt": "Set up routes.d so the payments team can own their own routes file at routes.d/payments.yaml without touching waf.yaml. Add a /pay/* route to payments:8000 there. waf.yaml is in this directory.",
-      "expected_output": "Detects or states that routes.d is not read by v0.9.7 (a route there is silently ignored), does not claim it works, and offers a working alternative (routes in waf.yaml with CODEOWNERS, or a CI merge step). Any routes.d file has no global key.",
+      "expected_output": "Detects or states that routes.d is not read by released versions (a route there is silently ignored), does not claim it works, and offers a working alternative (routes in waf.yaml with CODEOWNERS, or a CI merge step). Any routes.d file has no global key.",
       "files": [
         "files/5"
       ],
@@ -364,10 +364,10 @@
           }
         },
         {
-          "text": "Says routes.d is not loaded or is ignored",
+          "text": "Says routes.d is not supported (rejected, ignored or not loaded)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)(not|n't|never) (loaded|read|supported|picked up|implemented)|ignored|no loader|silently"
+            "regex": "(?i)(not|n't|never) (loaded|read|supported|picked up|implemented|available)|igno|reject|not yet"
           }
         },
         {
@@ -546,10 +546,10 @@
           }
         },
         {
-          "text": "Tells the user to restart",
+          "text": "Tells the user how to apply the change (reload or restart)",
           "check": {
             "type": "output_contains",
-            "regex": "(?i)restart|rollout"
+            "regex": "(?i)restart|rollout|sighup|\\bHUP\\b|reload"
           }
         }
       ]

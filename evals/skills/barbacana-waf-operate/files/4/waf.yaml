@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 port: 8080
 health_port: 8081
 metrics_port: 9090

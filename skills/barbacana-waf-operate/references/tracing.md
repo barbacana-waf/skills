@@ -1,4 +1,4 @@
-# OpenTelemetry tracing (v0.9.7)
+# OpenTelemetry tracing (checked on v0.9.7, not re-tested on v0.10.0)
 
 Off by default. When off, no exporter is created and requests pay nothing.
 

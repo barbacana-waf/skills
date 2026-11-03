@@ -1,4 +1,4 @@
-version: v1alpha1
+version: v1beta1
 # Plain HTTP behind a load balancer. Change to `host: app.example.com` for auto-TLS (remove `port`).
 port: 8080
 health_port: 8081

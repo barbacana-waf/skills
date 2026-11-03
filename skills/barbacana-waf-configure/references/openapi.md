@@ -11,7 +11,7 @@ openapi:
 
 1. Get the real spec file. Do not hand-write a spec to make validation pass. Confirm it is OpenAPI 3.x (`openapi: 3.0.x` or `3.1.x`).
 2. Decide where it lives at run time: the path is read by the Barbacana process, so in a container it must be mounted (Compose volume, Kubernetes ConfigMap or volume). Use an absolute path to avoid ambiguity.
-3. **Check the file exists and parses yourself.** `--validate` prints `config valid` for a missing spec on v0.9.7 and the process then refuses to start (`create OpenAPI ...` error), so keep the old instance running until the new one is ready. Also run `--render-config`: it does not open the spec either, so the only real test is starting an instance (a dev copy).
+3. **Run `--validate` where the spec is mounted.** From v0.10.0 it fails on a missing or invalid spec (`load openapi spec ...`); v0.9.7 printed `config valid` and the process then refused to start, so on older releases check the file exists and parses yourself. `--render-config` does not open the spec, so the real test is still starting a dev instance. A failed startup stops the process: keep the old instance running until the new one is ready.
 
 ## Paths are matched after the rewrite
 

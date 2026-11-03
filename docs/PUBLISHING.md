@@ -24,7 +24,8 @@ Publishing is effectively permanent: every install is tracked and cached copies 
 - [ ] **Only finished skills are visible.** Stubs (`barbacana-waf-configure`, `barbacana-waf-operate`) carry `metadata.internal: true` and stay hidden. Remove the flag when a skill is ready.
 - [ ] No `TODO` left in any visible skill: `grep -rn TODO skills/*/SKILL.md skills/*/references` returns nothing for visible skills.
 - [ ] `scripts/lint-skills.sh` passes.
-- [ ] Sample configs validate against the **latest released** Barbacana: `barbacana --config <file> --validate` for each `skills/*/assets/waf-*.yaml`.
+- [x] Sample configs validate against the **latest released** Barbacana (v0.10.0): `barbacana --config <file> --validate` for each `skills/*/assets/waf-*.yaml`. The one exception is `waf-openapi.yaml`, which names a spec file that must exist (v0.10.0 validates it): validate it with a stub spec at that path.
+- [ ] **Re-check the skills against each new Barbacana release** (read its release notes): behaviours the references call out (reload, `routes_dir`, route order, health probes, validate gaps, metrics, config `version`) change between releases. The v0.10.0 recheck is recorded in the commit history.
 - [ ] Evals run and reviewed (`evals/README.md`); the skill beats the baseline on the evals it should, with no regressions.
 - [ ] Image tags in assets are placeholders (`vX.Y.Z`) and docs tell the agent to look up the latest release.
 - [x] Cosign identity confirmed: the exact `release.yml@refs/heads/master` identity verifies v0.9.7 (image, SBOM attestation and `checksums.txt.bundle`). The Barbacana docs that said otherwise were corrected in `docs/VERIFYING.md` and `docs/design/build.md`.
